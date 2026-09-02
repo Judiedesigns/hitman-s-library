@@ -1,12 +1,8 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <title>Hitman's Library</title>
-  <rect width="180" height="180" rx="38" fill="#0e0e0e" />
-  <g fill="#ffffff">
-    <!-- horizontal bars -->
-    <rect x="28" y="66" width="124" height="17" />
-    <rect x="28" y="99" width="124" height="17" />
-    <!-- slanted uprights -->
-    <polygon points="74,32 92,32 74,148 56,148" />
-    <polygon points="114,32 132,32 114,148 96,148" />
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <style>
+    :root { color-scheme: light dark }
+    .m { fill: #111111 }
+    @media (prefers-color-scheme: dark) { .m { fill: #e6e2db } }
+  </style>
+  <g class="m"><rect x="6" y="54" width="52" height="4" rx="2"/><rect x="9" y="12" width="11" height="42" rx="1.6"/><rect x="26" y="6" width="11" height="48" rx="1.6"/><g transform="rotate(15 54 54)"><rect x="43" y="10" width="11" height="44" rx="1.6"/></g></g>
 </svg>

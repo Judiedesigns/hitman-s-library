@@ -1,8 +1,22 @@
 export type ChangeType = 'new' | 'improved' | 'fixed'
 
+export type Author = 'damilare' | 'florence'
+
+export interface Person {
+  name: string
+  /** Local copy of the GitHub avatar, so the page owns its own images. */
+  avatar: string
+}
+
+export const AUTHORS: Record<Author, Person> = {
+  damilare: { name: 'Damilare', avatar: '/people/damilare.png' },
+  florence: { name: 'Florence', avatar: '/people/florence.jpg' },
+}
+
 export interface ChangeItem {
   type: ChangeType
   text: string
+  author?: Author
 }
 
 export interface ChangelogRelease {
@@ -12,10 +26,126 @@ export interface ChangelogRelease {
   items: ChangeItem[]
 }
 
+export interface ReleaseRef {
+  /** Index into `changelog` — also the anchor id, as `rel-{index}`. */
+  index: number
+  date: string
+  title: string
+}
+
+export interface MonthGroup {
+  /** Anchor id for the month, e.g. "m-2026-08". */
+  id: string
+  /** Three letters, e.g. "AUG". */
+  label: string
+  year: string
+  releases: ReleaseRef[]
+}
+
+const MONTH_LABEL = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+
+/**
+ * The releases folded into the months they happened in, newest first.
+ *
+ * Months with nothing in them never appear — there was no release in June or
+ * July, and a navigation that lists empty months is offering somewhere to go
+ * that has nothing when you get there.
+ */
+export function groupByMonth(releases: ChangelogRelease[] = changelog): MonthGroup[] {
+  const groups: MonthGroup[] = []
+  releases.forEach((release, index) => {
+    const [year, month] = release.date.split('-')
+    const id = `m-${year}-${month}`
+    let group = groups.find(g => g.id === id)
+    if (!group) {
+      group = { id, label: MONTH_LABEL[Number(month) - 1], year, releases: [] }
+      groups.push(group)
+    }
+    group.releases.push({ index, date: release.date, title: release.title })
+  })
+  return groups
+}
+
+/** Everyone who has a line in this release, in the order they first appear. */
+export function releaseAuthors(release: ChangelogRelease): Author[] {
+  const seen: Author[] = []
+  for (const item of release.items) {
+    if (item.author && !seen.includes(item.author)) seen.push(item.author)
+  }
+  return seen
+}
+
 // To add a new release: prepend an entry to this array.
 // Dates are displayed as "Apr 2, 2026".
 // Types: "new" (green) | "improved" (blue) | "fixed" (muted)
+// Set `author` on an item to say who made it. A release where everyone's
+// lines belong to one person says so once, beside the date; a release with
+// more than one hand in it names each line instead, because that is the
+// only case where the question is actually being asked.
 const changelog: ChangelogRelease[] = [
+  {
+    date: '2026-09-01',
+    title: 'Link Previews',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'New artwork when the site is shared, replacing a card from March' },
+      { type: 'fixed',    author: 'damilare', text: 'The site answered on two addresses at once. www now redirects to hitmanslibrary.xyz' },
+    ],
+  },
+  {
+    date: '2026-08-31',
+    title: 'Legibility',
+    items: [
+      { type: 'fixed',    author: 'damilare', text: 'The site read as not secure. One card stored its image over http, and a single insecure image drops the padlock for the whole page. Scraped URLs are upgraded to https on the way out now, so it cannot come back' },
+      { type: 'improved', author: 'damilare', text: 'Muted text was too faint to read. The lightest level measured 1.7:1 on white; every level now clears 4.5:1 in both themes' },
+      { type: 'improved', author: 'damilare', text: 'Type scale up one step across the board — the smallest labels were 10px' },
+      { type: 'fixed',    author: 'damilare', text: 'The rule above the corner links stopped in mid-air on About and Changelog. It follows the sidebar on the gallery and spans the page where there is none' },
+    ],
+  },
+  {
+    date: '2026-08-31',
+    title: 'A Mark',
+    items: [
+      { type: 'new',      author: 'damilare', text: 'A mark for the library — three books on a shelf, one leaning' },
+      { type: 'new',      author: 'damilare', text: 'The mark is the loading screen. Books arrive onto the shelf, hold, clear, repeat' },
+      { type: 'new',      author: 'damilare', text: 'Right-click the logo — or long-press it on a phone — to copy or download it as SVG' },
+      { type: 'improved', author: 'damilare', text: 'Favicon, touch icon and app icon are generated from the same geometry the site draws' },
+    ],
+  },
+  {
+    date: '2026-08-31',
+    title: 'Navigation',
+    items: [
+      { type: 'fixed',    author: 'damilare', text: 'Request a site, About and Changelog were all hidden below 640px — a phone reached the gallery and nothing else' },
+      { type: 'improved', author: 'damilare', text: 'About and Changelog sit in the bottom-left corner of the window, at every width. They list the pages you are not on' },
+      { type: 'new',      author: 'damilare', text: 'A changelog minimap — one dot per release, grouped by month. In the gutter on desktop, under the nav on mobile' },
+      { type: 'improved', author: 'damilare', text: 'Month markers on the changelog timeline, so a jump lands somewhere marked' },
+      { type: 'fixed',    author: 'damilare', text: 'sort=top could be set from a bookmark but never cleared' },
+    ],
+  },
+  {
+    date: '2026-08-31',
+    title: 'About',
+    items: [
+      { type: 'new',      author: 'damilare', text: 'An About page — how a spreadsheet of links became this' },
+      { type: 'new',      author: 'damilare', text: 'Both signatures draw themselves when they scroll into view' },
+      { type: 'new',      author: 'damilare', text: 'Hover the word spreadsheet to see the original sheet' },
+      { type: 'improved', author: 'damilare', text: 'Changelog bylines show faces. Each line keeps an initial' },
+    ],
+  },
+  {
+    date: '2026-08-30',
+    title: 'Preview Panel & Gallery',
+    items: [
+      { type: 'improved', author: 'florence', text: 'Detail panel reads Preview / Mobile / Colors / Type. Mobile is a tab now, not a toolbar sitting over the preview' },
+      { type: 'improved', author: 'florence', text: 'Live link moved into the panel header, beside the domain' },
+      { type: 'improved', author: 'florence', text: 'Sort moved beside the result count. Categories select one at a time' },
+      { type: 'improved', author: 'florence', text: 'Presentation mode and the filter chip row removed' },
+      { type: 'fixed',    author: 'florence', text: 'An empty screenshot retries at viewport size; the shared browser reconnects after a crash instead of poisoning every capture after it' },
+      { type: 'improved', author: 'florence', text: 'Duplicate detection ignores trailing slashes and query strings' },
+      { type: 'fixed',    author: 'damilare', text: 'The selected sort pill was near-white on near-white in dark mode — 1.02:1, unreadable' },
+      { type: 'fixed',    author: 'damilare', text: 'Live previews gave up on any failed image. Only real script errors count now' },
+    ],
+  },
   {
     date: '2026-08-27',
     title: 'Photographed Too Early',

@@ -11,6 +11,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { motion, AnimatePresence } from 'motion/react'
 import { useSoundsContext } from '@/contexts/sounds-context'
 import { RequestSiteDialog } from '@/components/request-site-dialog'
+import { Brand } from '@/components/brand'
+import { SiteLinks } from '@/components/site-links'
 import { EASE, DUR } from '@/lib/motion'
 import Link from 'next/link'
 
@@ -63,8 +65,8 @@ function sortButton(isActive: boolean): string {
     // Nothing sits above or below it inside the 56px header.
     "after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']",
     isActive
-      ? 'bg-[#E8E8E8] text-ink border-edge-strong'
-      : 'text-ink-4 border-transparent bg-transparent hover:text-ink-3 hover:bg-[#F4F4F5]',
+      ? 'bg-muted text-ink border-edge-strong'
+      : 'text-ink-4 border-transparent bg-transparent hover:text-ink-3 hover:bg-foreground/[0.055]',
   ].join(' ')
 }
 
@@ -405,8 +407,9 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
   // has the same room either way and the count does not shift under you.
   const cardColumns = 'grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3'
 
-  const detailPanel = isPanelOpen && (
+  const renderDetailPanel = (variant: 'desktop' | 'mobile') => isPanelOpen && (
     <SiteDetailPanel
+      variant={variant}
       sourceId={Number(selectedId)}
       metadata={selectedDesign ? {
         tags: selectedDesign.tags,
@@ -435,9 +438,11 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
       <header className="sticky top-0 z-50 border-b border-edge-strong bg-background/95 backdrop-blur-sm">
         <div className="h-14 px-5 xl:px-7 flex items-center gap-4">
 
-          <h1 className="text-[15px] font-semibold tracking-[-0.04em] text-foreground select-none shrink-0">
-            Hitman<span className="font-light opacity-50">&apos;s</span> Library
-          </h1>
+          {/* The wordmark used to be this page's h1. With only the mark on
+              screen the heading still has to exist for anything that reads
+              structure rather than pixels. */}
+          <h1 className="sr-only">Hitman&apos;s Library</h1>
+          <Brand />
 
           {/* Search — the header controls belong to the 3-pane layout. Below
               it the filter block above the grid owns search and sort, and two
@@ -476,20 +481,12 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
                 something the person just asked for. */}
             <button
               onClick={() => setRequestOpen(true)}
-              className="relative hidden sm:flex items-center gap-1 text-meta text-ink-3 hover:text-ink transition-colors mr-1 after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']"
+              aria-label="Request a site"
+              className="relative flex items-center gap-1 text-meta text-ink-3 hover:text-ink transition-colors mr-1 sm:mr-1 max-sm:w-9 max-sm:h-9 max-sm:justify-center max-sm:rounded-[10px] max-sm:bg-muted/60 max-sm:hover:bg-muted max-sm:active:scale-[0.98] after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']"
             >
-              <Plus className="w-3 h-3" weight="bold" />
-              Request a site
+              <Plus className="w-3 h-3 max-sm:w-4 max-sm:h-4" weight="bold" />
+              <span className="max-sm:sr-only">Request a site</span>
             </button>
-
-            <Link
-              href="/changelog"
-              // 17px tall as drawn. The overlay carries the touch target so the
-              // link keeps its weight in the header.
-              className="relative hidden sm:flex items-center text-meta text-ink-3 hover:text-ink transition-colors mr-1 after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']"
-            >
-              Changelog
-            </Link>
 
             <button
               onClick={() => {
@@ -582,6 +579,7 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
             {/* Active tags live in the filter bar above the grid, alongside
                 categories and search, rather than in a second list here. */}
           </nav>
+
         </aside>
 
         {/* Gallery */}
@@ -646,6 +644,7 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
                   </button>
                 ))}
               </div>
+
             </div>
           </div>
 
@@ -764,9 +763,12 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
               {isRefetching ? 'Loading sites' : `${pagination.total} sites`}
             </p>
           </div>
+
         </main>
 
-        <RequestSiteDialog
+        <SiteLinks hidden={isPanelOpen} variant="sidebar" />
+
+      <RequestSiteDialog
         open={requestOpen}
         onClose={() => setRequestOpen(false)}
         initialUrl={search.trim()}
@@ -786,7 +788,7 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
                 transition={{ duration: 0.15 }}
                 className="flex flex-col h-full"
               >
-                {detailPanel}
+                {renderDetailPanel('desktop')}
               </motion.div>
             ) : (
               <motion.div
@@ -855,7 +857,7 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
               </div>
 
               <div className="flex flex-col flex-1 min-h-0" style={{ touchAction: 'pan-y', paddingBottom: 'var(--safe-bottom)' }}>
-                {detailPanel}
+                {renderDetailPanel('mobile')}
               </div>
             </motion.div>
           </>

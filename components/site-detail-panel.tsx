@@ -33,12 +33,15 @@ interface SiteMetadata {
 }
 
 interface SiteDetailPanelProps {
+  /** Which breakpoint this instance is mounted at. */
+  variant?: 'desktop' | 'mobile'
   sourceId: number
   metadata?: SiteMetadata
   onClose?: () => void
 }
 
-export function SiteDetailPanel({ sourceId, metadata, onClose }: SiteDetailPanelProps) {
+export function SiteDetailPanel({ variant = 'desktop', sourceId, metadata, onClose }: SiteDetailPanelProps) {
+  const isMobile = variant === 'mobile'
   const [activeTab, setActiveTab] = useState<PanelTab>('preview')
   const [data, setData] = useState<DetailData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -97,7 +100,7 @@ export function SiteDetailPanel({ sourceId, metadata, onClose }: SiteDetailPanel
               rel="noopener noreferrer"
               aria-label={`Open ${hostname}`}
               title={`Open ${hostname}`}
-              className="h-8 rounded-[6px] border border-transparent px-2.5 text-ink-2 hover:text-ink hover:bg-[#F4F4F5] active:scale-[0.98] inline-flex items-center gap-1.5 transition-[background-color,color,transform] duration-[var(--dur-2)] ease-[var(--ease-sig)]"
+              className="h-8 rounded-[6px] border border-transparent px-2.5 text-ink-2 hover:text-ink hover:bg-muted active:scale-[0.98] inline-flex items-center gap-1.5 transition-[background-color,color,transform] duration-[var(--dur-2)] ease-[var(--ease-sig)]"
             >
               <span className="text-micro">Live link</span>
               <ArrowUpRight className="w-3.5 h-3.5" weight="bold" />
@@ -117,7 +120,7 @@ export function SiteDetailPanel({ sourceId, metadata, onClose }: SiteDetailPanel
 
       {/* Tab bar */}
       <div className="flex-shrink-0">
-        <PanelTabs active={activeTab} onChange={setActiveTab} />
+        <PanelTabs active={activeTab} onChange={setActiveTab} variant={variant} />
       </div>
 
       {/* Content */}
@@ -152,11 +155,12 @@ export function SiteDetailPanel({ sourceId, metadata, onClose }: SiteDetailPanel
                     screenshotUrl={data.screenshot_url}
                     mobileScreenshotUrl={data.mobile_screenshot_url}
                     extractionError={data.extraction_error}
-                    displayMode="live"
+                    displayMode={isMobile ? 'mobile' : 'live'}
+                    fill={isMobile}
                   />
                 </motion.div>
               )}
-              {activeTab === 'mobile' && (
+              {!isMobile && activeTab === 'mobile' && (
                 <motion.div key="mobile" className="flex flex-col flex-1 min-h-0"
                   initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: DUR.move, ease: EASE }}
