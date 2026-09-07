@@ -82,7 +82,7 @@ export function DesignCard({ design, index, isSelected, onClick, onHover, onTagC
         'transition-[background-color,border-color] duration-[var(--dur-1)] ease-[var(--ease-hover)] ' +
         (isSelected
           ? 'border-foreground/60'
-          : 'border-edge hover:border-foreground/20 hover:bg-muted/20 active:border-foreground/40')
+          : 'border-edge hover:border-foreground/10 hover:bg-[#f8f8f8] active:border-foreground/30 dark:hover:bg-muted/60')
       }
     >
       {/* Screenshot */}

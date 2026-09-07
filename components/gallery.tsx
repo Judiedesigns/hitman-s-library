@@ -546,10 +546,9 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
           <nav className="flex-1 py-5 px-2.5" aria-label="Category filters">
             <p className="px-2.5 pb-2.5 text-micro text-ink-4 select-none">Library</p>
 
-            {/* space-y-px rather than 0.5: once rows fill when selected, the gap
-                between them is reading as part of the shape, and 4px of it made
-                the list look like stacked buttons instead of one column. */}
-            <ul className="space-y-px" role="list">
+            {/* A 4px gap keeps adjacent filled rows from merging visually when
+                one is active and the next is hovered. */}
+            <ul className="space-y-1" role="list">
               <li>
                 <button
                   onClick={() => handleFilterChange('All')}
