@@ -19,6 +19,8 @@ interface DetailData {
   url: string
   screenshot_url: string | null
   mobile_screenshot_url: string | null
+  /** False for sites the proxy can never render — see PreviewTab. */
+  live_preview?: boolean
   extraction_error: string | null
   colors: ColorRow[]
   typography: TypographyRow[]
@@ -29,7 +31,7 @@ interface SiteMetadata {
   designStyle?: string
   complexity?: string
   useCase?: string
-  industry?: string
+  kind?: string
 }
 
 interface SiteDetailPanelProps {
@@ -86,9 +88,9 @@ export function SiteDetailPanel({ variant = 'desktop', sourceId, metadata, onClo
           <p className="text-titletext text-ink truncate">
             {hostname}
           </p>
-          {(metadata?.industry || metadata?.tags?.[0]) && (
+          {(metadata?.kind || metadata?.tags?.[0]) && (
             <p className="text-micro text-ink-4 mt-0.5 truncate">
-              {[metadata.industry, metadata.tags?.[0]].filter(Boolean).join(' · ')}
+              {[metadata.kind, metadata.tags?.[0]].filter(Boolean).join(' · ')}
             </p>
           )}
         </div>
@@ -155,6 +157,7 @@ export function SiteDetailPanel({ variant = 'desktop', sourceId, metadata, onClo
                     screenshotUrl={data.screenshot_url}
                     mobileScreenshotUrl={data.mobile_screenshot_url}
                     extractionError={data.extraction_error}
+                    livePreview={data.live_preview !== false}
                     displayMode={isMobile ? 'mobile' : 'live'}
                     fill={isMobile}
                   />

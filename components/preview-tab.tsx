@@ -15,6 +15,16 @@ interface PreviewTabProps {
   screenshotUrl?: string | null
   mobileScreenshotUrl?: string | null
   extractionError?: string | null
+  /**
+   * False for the sites whose live preview can never work — six refuse a
+   * server-side fetch outright (403, a bot gate, markdown served to
+   * non-browsers) and eighteen ship an empty shell that only fills in once
+   * their own JavaScript runs, which the proxy does not execute.
+   *
+   * Without this the panel spent eight seconds discovering that again on every
+   * visit, then fell back to the screenshot it could have shown immediately.
+   */
+  livePreview?: boolean
   displayMode?: Extract<PreviewMode, 'live' | 'mobile'>
   /** Drop the drawn phone frame — on an actual phone it is a picture of the
    *  device you are holding, and it costs the preview most of its width. */
@@ -26,19 +36,25 @@ export function PreviewTab({
   screenshotUrl,
   mobileScreenshotUrl,
   extractionError,
+  livePreview = true,
   displayMode = 'live',
   fill = false,
 }: PreviewTabProps) {
+  const hasDesktop = Boolean(screenshotUrl)
+  /** Where this site starts: its capture if live can never work, else live. */
+  const openingMode: PreviewMode =
+    !livePreview && displayMode === 'live' ? (hasDesktop ? 'screenshot' : 'mobile') : displayMode
+
   const [loaded, setLoaded] = useState(false)
   const [proxyFailed, setProxyFailed] = useState(false)
-  const [mode, setMode] = useState<PreviewMode>(displayMode)
+  const [mode, setMode] = useState<PreviewMode>(openingMode)
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const errorCheckTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const domain = getDomain(siteUrl)
   const proxyUrl = `/api/proxy?url=${encodeURIComponent(siteUrl)}&picker=0`
-  const hasDesktopScreenshot = Boolean(screenshotUrl)
+  const hasDesktopScreenshot = hasDesktop
   const hasMobileScreenshot = Boolean(mobileScreenshotUrl)
   const hasScreenshot = hasDesktopScreenshot || hasMobileScreenshot
   const activeScreenshotUrl =
@@ -49,17 +65,20 @@ export function PreviewTab({
   useEffect(() => {
     setLoaded(false)
     setProxyFailed(false)
-    setMode(displayMode)
+    setMode(openingMode)
     if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     errorCheckTimersRef.current.forEach(clearTimeout)
     errorCheckTimersRef.current = []
-    loadTimerRef.current = setTimeout(() => setProxyFailed(true), 8000)
+    // No timer where there is no live attempt to time out.
+    if (openingMode !== 'screenshot') {
+      loadTimerRef.current = setTimeout(() => setProxyFailed(true), 8000)
+    }
     return () => {
       if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
       errorCheckTimersRef.current.forEach(clearTimeout)
       errorCheckTimersRef.current = []
     }
-  }, [displayMode, siteUrl])
+  }, [openingMode, siteUrl])
 
   useEffect(() => {
     if (!proxyFailed || !hasScreenshot || mode !== 'live') return
@@ -130,7 +149,7 @@ export function PreviewTab({
     )
   }
 
-  if (mode === 'mobile' && !proxyFailed) {
+  if (mode === 'mobile' && !proxyFailed && livePreview) {
     return (
       <div className="relative flex-1 min-h-0 overflow-hidden bg-muted/35">
         <div className={fill ? 'absolute inset-0' : 'absolute inset-4 flex justify-center'}>

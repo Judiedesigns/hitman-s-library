@@ -12,11 +12,29 @@ const sql = neon(process.env.DATABASE_URL!)
 
 export type SortBy = 'recent' | 'oldest' | 'name' | 'quality'
 
+/**
+ * What kind of site it is — the axis the library is actually browsed on.
+ *
+ * It replaced `industry`, which asked what business the site's customer is in.
+ * That answered a question nobody browsing a design library was asking, and it
+ * answered it badly: 104 of 279 sites were filed as "SaaS" and another 105 as
+ * some flavour of uncategorised, so three quarters of the shelf sat in two
+ * buckets that told you nothing. A studio like hex.inc was filed as E-commerce.
+ *
+ * `Unsorted` is not a kind. It is where a newly added site waits until someone
+ * files it, and it sorts last.
+ */
+export const KINDS = [
+  'Product', 'Studio', 'Editorial', 'Company', 'Portfolio', 'Store', 'Venue', 'Event',
+] as const
+export type Kind = (typeof KINDS)[number]
+export const UNSORTED = 'Unsorted'
+
 export interface DesignRecord {
   id: string
   url: string
   title: string
-  industry: string
+  kind: string
   thumbnail_url?: string
   fallback_thumbnail?: string | null
   colors: string[]
@@ -32,7 +50,7 @@ export interface DesignRecord {
 }
 
 export interface QueryOptions {
-  industries?: string[]
+  kinds?: string[]
   tags?: string[]
   search?: string
   sortBy?: SortBy
@@ -43,38 +61,6 @@ export interface QueryOptions {
 export interface QueryResult {
   designs: DesignRecord[]
   pagination: { total: number; limit: number; offset: number; hasMore: boolean }
-}
-
-/** Display name → the raw industry values stored in the database. */
-export function denormalizeIndustry(name: string): string[] {
-  const lower = name.toLowerCase()
-  if (lower === 'saas / app') return ['saas', 'productivity', 'saas / app']
-  if (lower === 'finance') return ['fintech', 'finance']
-  if (lower === 'entertainment') return ['entertainment', 'social media']
-  if (lower === 'other') return ['general', 'uncategorized', 'healthcare', 'health', 'travel', 'education', 'code/bugs', 'other', 'c']
-  return [lower]
-}
-
-/** Raw database industry value → the display name shown in the sidebar. */
-export function normalizeIndustry(raw: string): string {
-  const s = (raw || '').trim()
-  if (/^saas$/i.test(s)) return 'SaaS / App'
-  if (/^fintech$/i.test(s)) return 'Finance'
-  if (/^productivity$/i.test(s)) return 'SaaS / App'
-  if (/^social\s*media$/i.test(s)) return 'Entertainment'
-  if (/^health(care|tech)?$/i.test(s)) return 'Other'
-  if (/^travel$/i.test(s)) return 'Other'
-  if (/^education$/i.test(s)) return 'Other'
-  if (/^marketing$/i.test(s)) return 'Marketing'
-  if (/^e-commerce$/i.test(s)) return 'E-commerce'
-  if (/^entertainment$/i.test(s)) return 'Entertainment'
-  if (/^portfolio$/i.test(s)) return 'Portfolio'
-  if (/^agency$/i.test(s)) return 'Agency'
-  if (/^(general|uncategorized)$/i.test(s)) return 'Other'
-  if (/^code[\s/]+bugs$/i.test(s)) return 'Other'
-  if (/^[a-z]$/.test(s)) return 'Other'
-  if (!s) return 'Other'
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 const SORT_CLAUSES: Record<SortBy, string> = {
@@ -119,7 +105,7 @@ function parseMetadata(raw: unknown): Record<string, any> {
 
 export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult> {
   const {
-    industries = [],
+    kinds = [],
     tags = [],
     search = '',
     sortBy = 'recent',
@@ -133,11 +119,11 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
   const whereConditions: string[] = ['ds.screenshot_url IS NOT NULL']
   const filterParams: any[] = []
 
-  if (industries.length > 0 && !industries.includes('all')) {
-    const denormalized = industries.flatMap(denormalizeIndustry)
-    const placeholders = denormalized.map((_, i) => `$${filterParams.length + i + 1}`).join(',')
-    whereConditions.push(`LOWER(ds.industry) IN (${placeholders})`)
-    filterParams.push(...denormalized)
+  if (kinds.length > 0 && !kinds.includes('all')) {
+    const placeholders = kinds.map((_, i) => `$${filterParams.length + i + 1}`).join(',')
+    // A site with no kind yet answers to Unsorted, so nothing is unreachable.
+    whereConditions.push(`COALESCE(ds.kind, '${UNSORTED}') IN (${placeholders})`)
+    filterParams.push(...kinds)
   }
 
   if (tags.length > 0) {
@@ -159,7 +145,7 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
       ds.id,
       ds.source_url,
       ds.source_name,
-      ds.industry,
+      ds.kind,
       ds.metadata,
       ds.tags,
       ds.created_at,
@@ -196,7 +182,7 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
       id: String(row.id),
       url: row.source_url,
       title: cleanTitle(row.source_name, row.source_url),
-      industry: normalizeIndustry(row.industry),
+      kind: row.kind || UNSORTED,
       thumbnail_url: cleanUrl(row.screenshot_url) || cleanUrl(row.thumbnail_url) || undefined,
       fallback_thumbnail: row.screenshot_url ? cleanUrl(row.thumbnail_url) : null,
       colors: Array.isArray(row.hex_colors) ? row.hex_colors.filter(Boolean) : [],
@@ -218,30 +204,26 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
   }
 }
 
-const DEPRIORITIZED = ['Other']
-
 export async function queryCategories(): Promise<{ name: string; count: number }[]> {
   const rows = await sql`
-    SELECT industry, COUNT(*) as count
+    SELECT COALESCE(kind, ${UNSORTED}) AS kind, COUNT(*) as count
     FROM design_sources
     WHERE screenshot_url IS NOT NULL
-    GROUP BY industry
+    GROUP BY 1
   `
 
-  const merged: Record<string, number> = {}
-  for (const row of rows) {
-    const key = normalizeIndustry(row.industry || 'Other')
-    merged[key] = (merged[key] || 0) + Number(row.count)
-  }
+  const counts: Record<string, number> = {}
+  for (const row of rows) counts[row.kind] = Number(row.count)
 
-  return Object.entries(merged)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => {
-      const aLow = DEPRIORITIZED.includes(a.name)
-      const bLow = DEPRIORITIZED.includes(b.name)
-      if (aLow !== bLow) return aLow ? 1 : -1
-      return b.count - a.count
-    })
+  // Fixed order rather than by size. The rail is a list of what the library
+  // holds, and a list that reshuffles as sites are added is one you have to
+  // read again every visit.
+  const ordered = KINDS
+    .filter(name => counts[name])
+    .map(name => ({ name: name as string, count: counts[name] }))
+
+  if (counts[UNSORTED]) ordered.push({ name: UNSORTED, count: counts[UNSORTED] })
+  return ordered
 }
 
 /**

@@ -123,7 +123,7 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
 
   // The URL is the source of truth for every filter, so views are shareable
   // and the back button steps through them.
-  const industries = useMemo(() => searchParams.getAll('category'), [searchParams])
+  const kinds = useMemo(() => searchParams.getAll('category'), [searchParams])
   const tags = useMemo(() => searchParams.getAll('tag'), [searchParams])
   const search = searchParams.get('q') ?? ''
   const sortBy = SLUG_TO_SORT.get(searchParams.get('sort') ?? '') ?? 'recent'
@@ -211,14 +211,14 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
 
   const buildQuery = useCallback((offset: number) => {
     const params = new URLSearchParams()
-    industries.forEach(i => params.append('industry', i))
+    kinds.forEach(k => params.append('kind', k))
     tags.forEach(t => params.append('tag', t))
     if (search) params.append('search', search)
     params.append('sortBy', sortBy)
     params.append('limit', String(LIMIT))
     params.append('offset', String(offset))
     return params
-  }, [industries, tags, search, sortBy])
+  }, [kinds, tags, search, sortBy])
 
   const loadDesigns = useCallback(async (offset: number, append: boolean) => {
     const seq = ++requestSeq.current
@@ -240,7 +240,7 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
 
   // Refetch when filters change. The first render already has server data,
   // so this skips until something actually moves.
-  const filterKey = `${industries.join(',')}|${tags.join(',')}|${search}|${sortBy}`
+  const filterKey = `${kinds.join(',')}|${tags.join(',')}|${search}|${sortBy}`
   const lastFilterKey = useRef(filterKey)
   useEffect(() => {
     if (lastFilterKey.current === filterKey) return
@@ -348,17 +348,17 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
     selectDesign(design)
   }, [sounds, selectDesign])
 
-  const handleFilterChange = useCallback((industry: string) => {
+  const handleFilterChange = useCallback((kind: string) => {
     sounds.playFilterClick()
     updateParams(p => {
       p.delete('site')
       p.delete('category')
       p.delete('tag')
       p.delete('q')
-      if (industry === 'All') {
+      if (kind === 'All') {
         return
       }
-      p.set('category', industry)
+      p.set('category', kind)
     })
   }, [sounds, updateParams])
 
@@ -391,12 +391,12 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
     })
   }, [updateParams])
 
-  const hasFilters = industries.length > 0 || tags.length > 0 || search.length > 0
+  const hasFilters = kinds.length > 0 || tags.length > 0 || search.length > 0
   const showSkeletons = isRefetching && designs.length === 0
   const galleryHeading =
     !hasFilters ? 'All sites' :
-    industries.length === 1 && tags.length === 0 && !search ? industries[0] :
-    search && industries.length === 0 && tags.length === 0 ? 'Search results' :
+    kinds.length === 1 && tags.length === 0 && !search ? kinds[0] :
+    search && kinds.length === 0 && tags.length === 0 ? 'Search results' :
     'Filtered sites'
 
   // Two column tracks, because the grid gets the whole row back whenever no
@@ -416,7 +416,7 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
         designStyle: selectedDesign.designStyle,
         complexity: selectedDesign.complexity,
         useCase: selectedDesign.useCase,
-        industry: selectedDesign.industry,
+        kind: selectedDesign.kind,
       } : undefined}
       onClose={() => selectDesign(null)}
     />
@@ -543,7 +543,7 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
 
         {/* Sidebar */}
         <aside className="hidden xl:flex xl:col-span-2 flex-col sticky top-14 h-[calc(100vh-56px)] border-r border-edge-strong bg-background overflow-y-auto">
-          <nav className="flex-1 py-5 px-2.5" aria-label="Category filters">
+          <nav className="flex-1 py-5 px-2.5" aria-label="Filter by kind of site">
             <p className="px-2.5 pb-2.5 text-micro text-ink-4 select-none">Library</p>
 
             {/* A 4px gap keeps adjacent filled rows from merging visually when
@@ -552,15 +552,15 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
               <li>
                 <button
                   onClick={() => handleFilterChange('All')}
-                  aria-pressed={industries.length === 0}
-                  className={sidebarRow(industries.length === 0)}
+                  aria-pressed={kinds.length === 0}
+                  className={sidebarRow(kinds.length === 0)}
                 >
                   <span className="flex-1 text-left text-bodytext">All</span>
-                  <span className={sidebarCount(industries.length === 0)}>{libraryTotal}</span>
+                  <span className={sidebarCount(kinds.length === 0)}>{libraryTotal}</span>
                 </button>
               </li>
               {categories.map(({ name, count }) => {
-                const isActive = industries.includes(name)
+                const isActive = kinds.includes(name)
                 return (
                   <li key={name}>
                     <button
@@ -610,9 +610,9 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
             </div>
 
             {/* Categories */}
-            <div className="flex gap-2 overflow-x-auto px-4 pb-2 no-scrollbar" role="group" aria-label="Filter by category">
+            <div className="flex gap-2 overflow-x-auto px-4 pb-2 no-scrollbar" role="group" aria-label="Filter by kind of site">
               {[{ name: 'All', count: libraryTotal }, ...categories].map(({ name, count }) => {
-                const isActive = name === 'All' ? industries.length === 0 : industries.includes(name)
+                const isActive = name === 'All' ? kinds.length === 0 : kinds.includes(name)
                 return (
                   <button
                     key={name}

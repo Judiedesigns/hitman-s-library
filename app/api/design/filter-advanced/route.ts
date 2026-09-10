@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     const sortParam = searchParams.get('sortBy') as SortBy | null
     const result = await queryDesigns({
-      industries: searchParams.getAll('industry'),
+      kinds: searchParams.getAll('kind'),
       tags: searchParams.getAll('tag'),
       search: searchParams.get('search') ?? '',
       sortBy: sortParam && VALID_SORTS.includes(sortParam) ? sortParam : 'recent',
