@@ -84,6 +84,16 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 // only case where the question is actually being asked.
 const changelog: ChangelogRelease[] = [
   {
+    date: '2026-09-07',
+    title: 'Dark Surfaces',
+    items: [
+      { type: 'improved', author: 'florence', text: 'Dark mode sits on a new surface ladder. Background, cards and popovers step apart' },
+      { type: 'fixed',    author: 'florence', text: 'Muted text on dark was too faint to read. Every level is lighter now' },
+      { type: 'improved', author: 'florence', text: 'Card hover is a fill, not a hard border. Softer in both themes' },
+      { type: 'improved', author: 'florence', text: 'Sidebar categories sit tighter together' },
+    ],
+  },
+  {
     date: '2026-09-01',
     title: 'Link Previews',
     items: [
