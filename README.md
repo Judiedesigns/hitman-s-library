@@ -19,7 +19,7 @@ When you add a URL, the app:
 
 ## Features
 
-- **Card grid** — Browse all sites with staggered card entrances, filter by category
+- **Card grid** — Browse all sites with staggered card entrances, filter by kind of site
 - **Detail panel** — Click any site to see preview, mobile, colors, and type in a wide inspector with a sliding tab underline
 - **About** — Where the library came from, with both signatures drawn on as single-centreline SVG paths when they scroll into view (`components/signature.tsx`; art in `data/signatures.ts`)
 - **Keyboard** — `/` focuses search, arrow keys cycle tabs, `Esc` closes the panel
@@ -37,7 +37,49 @@ When you add a URL, the app:
 - **Changelog** — `/changelog` feed showing all additions, re-extractions, and deletions
 - **Color export** — Copy palette as CSS custom properties or Tailwind config snippet
 - **Admin CMS** — Passcode-protected admin at `/admin` to add, search, and delete sites; bulk duplicate removal
-- **Linkable views** — Category, tag, search, sort, and the open site all live in the URL, so any view can be shared and the back button steps through history
+- **Linkable views** — Kind, tag, search, sort, and the open site all live in the URL, so any view can be shared and the back button steps through history
+
+---
+
+## How sites are filed
+
+Every source carries a `kind` — what kind of site it is, which is the question
+someone browsing a design library is actually asking:
+
+| Kind | What belongs in it |
+|---|---|
+| **Product** | Software you sign up for, download, or deploy |
+| **Studio** | Agencies and studios selling their own craft |
+| **Editorial** | Publications, galleries, archives, guidelines |
+| **Company** | Businesses that aren't a product, studio, or store |
+| **Portfolio** | One person's work, under their own name |
+| **Store** | Things you buy |
+| **Venue** | Places you physically go |
+| **Event** | Something with a date on it |
+
+The rail lists them in that fixed order rather than by size, because a list that
+reshuffles as sites are added is one you have to read again every visit.
+
+This replaced `industry`, which recorded the business a site's *customer* was in.
+Three quarters of the library sat in two buckets under that scheme — 104 sources
+filed as "SaaS", another 105 as some flavour of uncategorised — and the labels
+that did exist were often wrong: hex.inc, a brand and product studio, was filed
+under E-commerce. The `industry` column is still there and nothing reads it; it
+is the only record of how a source was originally filed.
+
+A source with no kind shows as **Unsorted** and sorts last, so a newly added site
+is visible rather than silently unreachable. To file a batch, edit
+`scripts/kinds.json` and run:
+
+```bash
+node scripts/apply-kinds.mjs --dry   # print what would change
+node scripts/apply-kinds.mjs         # write it
+```
+
+Tags are a separate matter and are not currently a filter. They were
+auto-detected and are not trustworthy at the level a filter needs: `animated` is
+on 216 of 277 sources and `glassmorphism` on 157. A filter that matches most of
+the library is not a filter.
 
 ---
 
@@ -290,3 +332,33 @@ A few sites resist capture entirely — heavy client-rendered apps and bot
 protection. `--salvage` promotes their stored OG thumbnail into `screenshot_url`
 so the card shows something real. Where there is no usable fallback the card
 degrades to the domain name, which is the intended behaviour.
+
+**Use `--salvage` sparingly.** A promoted OG image is not a capture of the page,
+and nothing downstream can tell the difference — six sources were showing their
+own share graphic as their screenshot, Linear and Granola among them, and the
+rows looked perfectly healthy because the URL resolved and the bytes decoded.
+Prefer a real capture with a longer settle; salvage is the last resort, not the
+second attempt.
+
+### Checking captures
+
+A stored URL proves nothing. It can 404, answer 200 with an empty body, or
+return a single flat colour because the shutter fired before the page painted.
+`validate-captures.mjs` fetches every capture, decodes it, and measures pixel
+variance, so a blank page fails the way a missing one does:
+
+```bash
+node scripts/validate-captures.mjs        # writes capture-problems.json
+node scripts/recapture.mjs --desktop 13,31 --mobile 34,97
+```
+
+`backfill-mobile.mjs` captures the mobile breakpoint for every source missing
+one. It sets the phone viewport and user agent *before* navigating, which the
+`/api/admin/mobile-capture` route does not: that route navigates at 1440px and
+then resizes to 390, so a site serving a different document to phones was
+photographed as a desktop page squeezed to phone width.
+
+```bash
+node scripts/backfill-mobile.mjs             # everything missing a mobile shot
+node scripts/backfill-mobile.mjs --ids 3,4   # named sources, re-shot
+```

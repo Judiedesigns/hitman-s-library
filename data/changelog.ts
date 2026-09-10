@@ -84,6 +84,28 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 // only case where the question is actually being asked.
 const changelog: ChangelogRelease[] = [
   {
+    date: '2026-09-10',
+    title: 'Filed by Kind',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'The library is filed by what kind of site it is, not by its customer\u2019s industry' },
+      { type: 'fixed',    author: 'damilare', text: 'hex.inc, a brand and product studio, had been filed under E-commerce' },
+      { type: 'improved', author: 'damilare', text: 'Product, Studio, Editorial, Company, Portfolio, Store, Venue, Event \u2014 in fixed order, not by size' },
+      { type: 'fixed',    author: 'damilare', text: 'Three quarters of the shelf used to sit in SaaS or uncategorised' },
+    ],
+  },
+  {
+    date: '2026-09-10',
+    title: 'Every Breakpoint',
+    items: [
+      { type: 'new',      author: 'damilare', text: 'Every site now has a real mobile capture, shot at phone width from the start' },
+      { type: 'fixed',    author: 'damilare', text: 'Mobile captures were desktop pages squeezed to 390px, not the mobile layout' },
+      { type: 'fixed',    author: 'damilare', text: 'Six sites showed their own share image in place of a screenshot' },
+      { type: 'fixed',    author: 'damilare', text: 'Twelve mobile captures were blank, or empty files that loaded nothing' },
+      { type: 'improved', author: 'damilare', text: 'Sites the live preview can never reach now open straight to their capture' },
+      { type: 'fixed',    author: 'damilare', text: 'Two sites whose domains stopped resolving have been removed' },
+    ],
+  },
+  {
     date: '2026-09-07',
     title: 'Dark Surfaces',
     items: [
