@@ -10,6 +10,26 @@ import { Spinner } from './ui/spinner'
 const ICONS = { ShieldWarning, LockSimple, Clock, FileDashed, Warning }
 type PreviewMode = 'live' | 'screenshot' | 'mobile'
 
+/**
+ * Captures are full-page and enormous — a mean of 717kb, 120 of them over 1MB,
+ * and the largest 8.7MB — because a full-page shot of a long site at 2× is a
+ * genuinely huge picture. The panel used to hand the browser the original and
+ * let it download all of it to show a column a few hundred pixels wide.
+ *
+ * Cards already went through the image optimizer; this is the same route. The
+ * 8.7MB capture comes back at 1.2MB for a 1200px column, and smaller again in
+ * AVIF where the browser accepts it.
+ *
+ * Only blob-hosted captures are optimizable — the optimizer is deliberately
+ * restricted to that one host, so anything else is served as-is.
+ */
+const OPTIMIZABLE = '.public.blob.vercel-storage.com'
+function optimized(url: string, width: number): string {
+  if (!url.includes(OPTIMIZABLE)) return url
+  return `/_next/image?url=${encodeURIComponent(url)}&w=${width}&q=72`
+}
+const WIDTHS = [640, 1080, 1920]
+
 interface PreviewTabProps {
   siteUrl: string
   screenshotUrl?: string | null
@@ -138,7 +158,10 @@ export function PreviewTab({
       <div className="relative flex-1 min-h-0 overflow-auto bg-muted/35">
         <div className={`min-h-full ${fill ? 'p-0' : 'p-4'} ${mode === 'mobile' && !fill ? 'flex justify-center' : ''}`}>
           <img
-            src={activeScreenshotUrl}
+            src={optimized(activeScreenshotUrl, 1080)}
+            srcSet={WIDTHS.map(w => `${optimized(activeScreenshotUrl, w)} ${w}w`).join(', ')}
+            sizes={mode === 'mobile' ? '390px' : '(max-width: 1279px) 100vw, 40vw'}
+            decoding="async"
             alt={`${mode === 'mobile' ? 'Mobile' : 'Desktop'} screenshot of ${domain}`}
             className={`block rounded-[4px] border border-edge bg-background shadow-sm ${
               mode === 'mobile' ? 'w-full max-w-[390px]' : 'w-full'
