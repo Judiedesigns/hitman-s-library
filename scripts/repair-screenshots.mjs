@@ -10,11 +10,11 @@
 //   node scripts/repair-screenshots.mjs                  # report only
 //   node scripts/repair-screenshots.mjs --fix            # re-extract broken ones
 //   node scripts/repair-screenshots.mjs --fix --limit 5  # cap the work
-//   node scripts/repair-screenshots.mjs --salvage        # fall back to the OG image
 //
-// Some sites cannot be captured at all (heavy client apps, bot protection).
-// --salvage promotes their stored OG thumbnail into screenshot_url so the card
-// renders something real instead of a broken image.
+// There was a --salvage mode that promoted a site's OG thumbnail into
+// screenshot_url when capture failed. It is gone: a share graphic is not a
+// capture of the page, nothing downstream could tell the two apart, and six
+// sources ended up displaying their own OG image as their screenshot.
 //
 // Needs DATABASE_URL, and for --fix also BASE_URL and ADMIN_PASSWORD.
 import { neon } from '@neondatabase/serverless'
@@ -30,7 +30,6 @@ try {
 
 const args = process.argv.slice(2)
 const FIX = args.includes('--fix')
-const SALVAGE = args.includes('--salvage')
 const LIMIT = Number(args[args.indexOf('--limit') + 1]) || Infinity
 const BASE_URL = process.env.BASE_URL || 'https://www.hitmanslibrary.xyz'
 const CONCURRENCY = 12
@@ -87,34 +86,8 @@ for (const b of broken) {
 
 if (!broken.length) process.exit(0)
 
-if (SALVAGE) {
-  let salvaged = 0
-  let stranded = 0
-  console.log('\nSalvaging with stored OG thumbnails…\n')
-  for (const b of broken) {
-    if (b.thumbnail_url) {
-      const check = await byteLength(b.thumbnail_url)
-      if (check.ok) {
-        await sql`UPDATE design_sources SET screenshot_url = ${b.thumbnail_url} WHERE id = ${b.id}`
-        console.log(`  #${b.id} → OG image (${check.bytes} bytes)`)
-        salvaged++
-        continue
-      }
-    }
-    // No screenshot and no usable fallback: clearing it is honest. The gallery
-    // shows sites that are ready to preview, and a zero-byte file is not one —
-    // leaving it set costs a 502 on every page load for a grey placeholder.
-    // Re-running extraction later will bring the site back.
-    await sql`UPDATE design_sources SET screenshot_url = NULL WHERE id = ${b.id}`
-    console.log(`  #${b.id} no usable fallback — cleared, dropped from the gallery`)
-    stranded++
-  }
-  console.log(`\n${salvaged} salvaged, ${stranded} cleared.`)
-  process.exit(0)
-}
-
 if (!FIX) {
-  console.log('\nRe-run with --fix to re-extract these, or --salvage to fall back to the OG image.')
+  console.log('\nRe-run with --fix to re-extract these.')
   process.exit(0)
 }
 

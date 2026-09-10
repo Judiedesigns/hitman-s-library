@@ -92,9 +92,8 @@ to public writes, and are fenced accordingly.
 - `POST /api/admin/auth` exchanges `ADMIN_PASSWORD` for an HMAC-signed, httpOnly
   session cookie (12 hour TTL). The passcode is compared in constant time.
 - `requireAdmin()` in `lib/admin-auth.ts` guards every mutating route:
-  `design/delete`, `design/extract`, `design/[id]/reextract`,
-  `design/[id]/figma-capture`, `design/import-excel`, `design/capture-element`,
-  and all of `api/admin/*`. Scripts can pass `Authorization: Bearer $ADMIN_PASSWORD`
+  `design/delete`, `design/extract`, `design/[id]/reextract`, and all of
+  `api/admin/*`. Scripts can pass `Authorization: Bearer $ADMIN_PASSWORD`
   instead of a cookie.
 - The guard fails closed — with no passcode configured, nothing is callable.
 - `lib/safe-url.ts` protects every server-side fetch of a caller-supplied URL.
@@ -322,23 +321,22 @@ to plain text. To find and repair those:
 node scripts/repair-screenshots.mjs              # report only
 node scripts/repair-screenshots.mjs --fix        # re-extract the broken ones
 node scripts/repair-screenshots.mjs --fix --limit 5
-node scripts/repair-screenshots.mjs --salvage    # fall back to the site OG image
 ```
 
 `--fix` calls the live re-extract endpoint, so it needs `ADMIN_PASSWORD` and
 `BASE_URL` (defaults to production).
 
 A few sites resist capture entirely — heavy client-rendered apps and bot
-protection. `--salvage` promotes their stored OG thumbnail into `screenshot_url`
-so the card shows something real. Where there is no usable fallback the card
-degrades to the domain name, which is the intended behaviour.
+protection. Where there is no usable capture the card degrades to the domain
+name, which is the intended behaviour.
 
-**Use `--salvage` sparingly.** A promoted OG image is not a capture of the page,
-and nothing downstream can tell the difference — six sources were showing their
-own share graphic as their screenshot, Linear and Granola among them, and the
-rows looked perfectly healthy because the URL resolved and the bytes decoded.
-Prefer a real capture with a longer settle; salvage is the last resort, not the
-second attempt.
+There used to be a `--salvage` mode that promoted a site's OG thumbnail into
+`screenshot_url` so the card showed *something*. It is gone. A promoted share
+graphic is not a capture of the page and nothing downstream could tell the
+difference: six sources were displaying their own OG image as their screenshot,
+Linear and Granola among them, and every one of those rows looked healthy
+because the URL resolved and the bytes decoded. A site that will not photograph
+should say so, not quietly show a different picture.
 
 ### Checking captures
 
