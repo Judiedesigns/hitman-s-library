@@ -17,7 +17,7 @@ export async function GET(
 
   try {
     const sources = await sql`
-      SELECT id, source_url, screenshot_url, mobile_screenshot_url, figma_capture_url, created_at,
+      SELECT id, source_url, screenshot_url, mobile_screenshot_url, created_at,
              metadata->>'extraction_error' as extraction_error,
              COALESCE((metadata->>'live_preview')::boolean, true) as live_preview
       FROM design_sources WHERE id = ${id}
@@ -42,7 +42,6 @@ export async function GET(
       screenshot_url: toHttps(source.screenshot_url),
       mobile_screenshot_url: toHttps(source.mobile_screenshot_url),
       live_preview: source.live_preview,
-      figma_capture_url: source.figma_capture_url ?? null,
       created_at: source.created_at,
       extraction_error: source.extraction_error ?? null,
       colors,

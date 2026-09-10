@@ -53,3 +53,6 @@ coverage/
 .superpowers/
 .env*.local
 .gstack/
+preview-audit.log
+preview-results.json
+capture-problems.json

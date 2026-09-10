@@ -12,12 +12,11 @@ interface Site {
   id: string
   source_name: string
   source_url: string
-  industry: string
+  kind: string
   created_at: string
   thumbnail_url?: string
   screenshot_url?: string
   mobile_screenshot_url?: string | null
-  figma_capture_url?: string | null
   extraction_error?: string | null
 }
 
@@ -145,9 +144,6 @@ export default function AdminPage() {
   const [backfillProgress, setBackfillProgress] = useState<{ done: number; total: number } | null>(null)
   const [isPreviewBackfilling, setIsPreviewBackfilling] = useState(false)
   const [previewBackfillProgress, setPreviewBackfillProgress] = useState<{ done: number; total: number } | null>(null)
-  const [isMobbinImporting, setIsMobbinImporting] = useState(false)
-  const [mobbinResult, setMobbinResult] = useState<{ added: number; skipped: number; errors: number } | null>(null)
-  const [mobbinSites, setMobbinSites] = useState<{ url: string; name: string; industry: string }[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const stageTimers = useRef<ReturnType<typeof setTimeout>[]>([])
   const addInputRef = useRef<HTMLInputElement>(null)
@@ -172,7 +168,7 @@ export default function AdminPage() {
     !searchInput ||
     s.source_name.toLowerCase().includes(searchInput.toLowerCase()) ||
     s.source_url.toLowerCase().includes(searchInput.toLowerCase()) ||
-    s.industry.toLowerCase().includes(searchInput.toLowerCase())
+    s.kind.toLowerCase().includes(searchInput.toLowerCase())
   )
   const totalPages = Math.ceil(filtered.length / ITEMS)
   const paginated = filtered.slice((currentPage - 1) * ITEMS, currentPage * ITEMS)
@@ -189,11 +185,6 @@ export default function AdminPage() {
   const loadSites = async () => {
     setIsLoadingSites(true)
     try {
-      // Fetch Mobbin curated list preview (no auth needed, GET endpoint)
-      fetch('/api/admin/bulk-import')
-        .then(r => r.json())
-        .then(d => { if (Array.isArray(d.sites)) setMobbinSites(d.sites) })
-        .catch(() => null)
       const res = await fetch('/api/design/list')
       const data = await res.json()
       const raw = Array.isArray(data) ? data : data.designs || []
@@ -201,12 +192,11 @@ export default function AdminPage() {
         id: String(s.id),
         source_name: s.title || s.source_name || 'Untitled',
         source_url: s.url || s.source_url,
-        industry: s.industry || 'Uncategorized',
+        kind: s.kind || 'Unsorted',
         created_at: s.addedDate || s.created_at,
         thumbnail_url: s.thumbnail_url,
         screenshot_url: s.screenshot_url,
         mobile_screenshot_url: s.mobile_screenshot_url ?? null,
-        figma_capture_url: s.figma_capture_url ?? null,
         extraction_error: s.extraction_error ?? s.metadata?.extraction_error ?? null,
       })))
     } catch (e) {
@@ -319,22 +309,6 @@ export default function AdminPage() {
     setQueue(items)
     setBulkInput('')
     processQueue(items)
-  }
-
-  const handleMobbinImport = async () => {
-    if (!confirm(`Import ${mobbinSites.length} curated Mobbin sites? Existing sites will be skipped automatically.`)) return
-    setIsMobbinImporting(true)
-    setMobbinResult(null)
-    try {
-      const res = await fetch('/api/admin/bulk-import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-      const data = await res.json()
-      setMobbinResult({ added: data.added ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? 0 })
-      if ((data.added ?? 0) > 0) await loadSites()
-    } catch {
-      setMobbinResult({ added: 0, skipped: 0, errors: 1 })
-    } finally {
-      setIsMobbinImporting(false)
-    }
   }
 
   const handleDeduplicate = async () => {
@@ -616,59 +590,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Mobbin import */}
-        {mobbinSites.length > 0 && (
-          <div className="border border-edge rounded-[4px] p-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-bodytext font-medium">Mobbin curated sites</p>
-                <p className="text-meta text-ink-3 mt-0.5">
-                  {mobbinSites.length} sites · SaaS, Fintech, Design, Dev Tools — duplicates skipped automatically
-                </p>
-              </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                {mobbinResult && (
-                  <span className="text-meta text-ink-3">
-                    +{mobbinResult.added} added · {mobbinResult.skipped} skipped{mobbinResult.errors > 0 ? ` · ${mobbinResult.errors} errors` : ''}
-                  </span>
-                )}
-                <button
-                  onClick={handleMobbinImport}
-                  disabled={isMobbinImporting}
-                  className="h-8 px-3 text-ui border border-foreground/20 bg-foreground/[0.04] rounded-[4px] disabled:opacity-40 hover:bg-foreground/[0.08] hover:border-foreground/40 transition-colors flex items-center gap-1.5 whitespace-nowrap"
-                >
-                  {isMobbinImporting
-                    ? <><CircleNotch className="w-3 h-3 animate-spin" weight="bold" /> Importing…</>
-                    : `Import ${mobbinSites.length} sites`
-                  }
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {mobbinSites.map(s => {
-                const alreadyIn = allSites.some(a =>
-                  a.source_url.replace(/\/$/, '').replace('https://', '').replace('http://', '').replace('www.', '') ===
-                  s.url.replace(/\/$/, '').replace('https://', '').replace('http://', '').replace('www.', '')
-                )
-                return (
-                  <span
-                    key={s.url}
-                    className={[
-                      'text-[10px] font-mono px-2 py-1 rounded-[4px] border',
-                      alreadyIn
-                        ? 'text-ink-4 border-edge-faint'
-                        : 'text-ink-2 border-edge',
-                    ].join(' ')}
-                    title={alreadyIn ? 'Already in library' : s.industry}
-                  >
-                    {alreadyIn ? '✓ ' : ''}{s.name}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Search + count */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
@@ -727,7 +648,7 @@ export default function AdminPage() {
                       {site.source_name}
                     </p>
                     <span className="text-[10px] font-mono text-ink-3 border border-edge px-1.5 py-0.5 rounded-[4px] shrink-0">
-                      {site.industry}
+                      {site.kind}
                     </span>
                   </div>
                   <p className="text-meta text-ink-3 truncate mt-0.5">
