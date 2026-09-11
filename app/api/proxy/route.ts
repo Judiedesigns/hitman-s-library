@@ -120,6 +120,33 @@ export async function GET(req: NextRequest) {
   // <base href> resolves all relative URLs (CSS, images, links) against the real origin
   const baseTag = `<base href="${origin}/">`
 
+  /**
+   * <base href> has a second effect that nothing here accounted for: it also
+   * moves document.baseURI, and every client-side router resolves the URL it
+   * hands to history.replaceState against that. The result is a cross-origin
+   * replaceState, which throws a SecurityError, which happens during hydration,
+   * which takes the whole page down to Chrome's "This page couldn't load".
+   *
+   * It looked like 88 separate sites refusing to preview. It was one line of
+   * ours, and it hit every site with a client router — which is most of them.
+   *
+   * Swallowing the URL rather than the call keeps the router's state machine
+   * intact: it gets its state object and its event, and only the address bar
+   * (which nobody can see inside a panel) is left alone. This has to run before
+   * any of the site's own scripts, so it goes in the head beside the base tag.
+   */
+  const historyShim = `<script>(function(){
+  var push = history.pushState, replace = history.replaceState;
+  function guard(fn) {
+    return function (state, title, url) {
+      try { return fn.call(history, state, title, url) }
+      catch (e) { try { return fn.call(history, state, title) } catch (e2) { return undefined } }
+    }
+  }
+  history.pushState = guard(push);
+  history.replaceState = guard(replace);
+})();</script>`
+
   // Strip CSP and X-Frame-Options meta tags — they block our injected scripts
   // (header-based CSP/XFO is already absent from our response, but some sites
   //  also set them via <meta http-equiv>, which the browser still enforces)
@@ -127,7 +154,7 @@ export async function GET(req: NextRequest) {
   html = html.replace(/<meta\b[^>]+\bhttp-equiv\s*=\s*["']?x-frame-options["']?[^>]*>/gi, '')
 
   const injected = html
-    .replace(/<head([^>]*)>/i, `<head$1>${baseTag}`)
+    .replace(/<head([^>]*)>/i, `<head$1>${baseTag}${historyShim}`)
     .replace(/<\/body>/i, `${PREVIEW_SCRIPT}</body>`)
     || html + PREVIEW_SCRIPT
 

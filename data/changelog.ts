@@ -84,6 +84,33 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 // only case where the question is actually being asked.
 const changelog: ChangelogRelease[] = [
   {
+    date: '2026-09-11',
+    title: 'Previews That Load',
+    items: [
+      { type: 'fixed',    author: 'damilare', text: 'Most sites showed \u201cThis page couldn\u2019t load\u201d in the preview. That was our bug, not theirs' },
+      { type: 'improved', author: 'damilare', text: 'Previews weigh 86% less. A capture is sized for the panel, not shipped whole' },
+      { type: 'improved', author: 'damilare', text: 'Opening the same site twice no longer refetches the entire page' },
+    ],
+  },
+  {
+    date: '2026-09-11',
+    title: 'Scrub the Rail',
+    items: [
+      { type: 'new',      author: 'damilare', text: 'Drag the changelog rail to scrub through releases. The date keeps up' },
+      { type: 'fixed',    author: 'damilare', text: 'Scrolling back up left the rail sitting on a release you had already passed' },
+      { type: 'improved', author: 'damilare', text: 'Arrow keys step through releases one at a time' },
+    ],
+  },
+  {
+    date: '2026-09-11',
+    title: 'Less Admin',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Dropped the Figma capture pipeline. It produced a capture for none of 278 sites' },
+      { type: 'fixed',    author: 'damilare', text: 'A nightly job recaptured the whole library to fill a column nothing ever wrote' },
+      { type: 'improved', author: 'damilare', text: 'Dropped the Excel importer, the Mobbin seed list, and the share-image fallback' },
+    ],
+  },
+  {
     date: '2026-09-10',
     title: 'Filed by Kind',
     items: [

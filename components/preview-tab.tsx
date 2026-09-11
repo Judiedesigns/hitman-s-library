@@ -24,11 +24,24 @@ type PreviewMode = 'live' | 'screenshot' | 'mobile'
  * restricted to that one host, so anything else is served as-is.
  */
 const OPTIMIZABLE = '.public.blob.vercel-storage.com'
+/**
+ * q must be 75. Next 16 validates quality against `images.qualities`, which
+ * defaults to [75], and anything else is a 400 INVALID_IMAGE_OPTIMIZE_REQUEST
+ * — served as text/plain, so the panel would show a broken image rather than
+ * an unoptimized one.
+ */
 function optimized(url: string, width: number): string {
   if (!url.includes(OPTIMIZABLE)) return url
-  return `/_next/image?url=${encodeURIComponent(url)}&w=${width}&q=72`
+  return `/_next/image?url=${encodeURIComponent(url)}&w=${width}&q=75`
 }
-const WIDTHS = [640, 1080, 1920]
+/**
+ * 640 and 1080 only. A full-page capture is tall enough that asking for 1200
+ * or more puts the output over the optimizer's ceiling, and it answers with
+ * the untouched original — 8.7MB for the largest capture, which is the whole
+ * problem this is here to solve. At 1080 that same capture arrives as 639kb
+ * of AVIF.
+ */
+const WIDTHS = [640, 1080]
 
 interface PreviewTabProps {
   siteUrl: string
