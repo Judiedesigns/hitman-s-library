@@ -163,6 +163,44 @@ HTML rather than being fetched after hydration.
 
 ---
 
+## The live preview
+
+The preview tab renders the real site, same-origin, through `/api/proxy`: the
+HTML is fetched server-side, `<base href>` is rewritten to the real origin so
+relative CSS, images and links resolve, and the response carries no
+`X-Frame-Options` or CSP, which is the entire point of the route.
+
+**`<base href>` also moves `document.baseURI`,** and that is where it bites.
+Every client-side router resolves the URL it passes to `history.replaceState`
+against `baseURI`, so the call goes cross-origin, throws a `SecurityError`
+during hydration, and drops the whole page to Chrome's "This page couldn't
+load". It presents as the site being broken; it is ours. The injected head
+script guards `pushState` and `replaceState` and retries without the URL, which
+leaves the router's state machine intact — only the address bar is untouched,
+and nobody can see that inside a panel.
+
+Sites that still cannot render live — a server-side fetch refused outright,
+or a page that needs storage the sandboxed frame does not grant — carry
+`metadata.live_preview: false` and open straight to their capture. The panel
+does not spend eight seconds rediscovering that on every visit.
+
+`scripts/preview-audit.mjs` checks the whole library at once, loading each site
+through the real proxy in a real browser and judging what painted:
+
+```bash
+node scripts/preview-audit.mjs                  # all of them
+node scripts/preview-audit.mjs --ids 3,4,5      # a few
+BASE_URL=http://localhost:3000 node scripts/preview-audit.mjs
+```
+
+Be suspicious of a high failure count. A bad metric will happily report that
+most of the library is broken — an earlier version of this script compared each
+render against the site's stored capture and failed 90% of them, because
+headless Chrome reports `prefers-color-scheme: dark` and half the web answers
+that with a different palette. Look at a screenshot before believing a number.
+
+---
+
 ## Extraction pipeline
 
 `lib/browser-extraction.ts` owns the browser. The order of operations is the

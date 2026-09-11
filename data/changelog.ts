@@ -88,6 +88,7 @@ const changelog: ChangelogRelease[] = [
     title: 'Previews That Load',
     items: [
       { type: 'fixed',    author: 'damilare', text: 'Most sites showed \u201cThis page couldn\u2019t load\u201d in the preview. That was our bug, not theirs' },
+      { type: 'fixed',    author: 'damilare', text: 'Others loaded but stayed blank, waiting on a request the preview was blocking' },
       { type: 'improved', author: 'damilare', text: 'Previews weigh 86% less. A capture is sized for the panel, not shipped whole' },
       { type: 'improved', author: 'damilare', text: 'Opening the same site twice no longer refetches the entire page' },
     ],

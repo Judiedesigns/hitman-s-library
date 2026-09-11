@@ -145,6 +145,48 @@ export async function GET(req: NextRequest) {
   }
   history.pushState = guard(push);
   history.replaceState = guard(replace);
+
+  // The same <base href> moves what a relative fetch() resolves to. A call the
+  // page wrote as fetch('/api/x') becomes a cross-origin request to the real
+  // site, which sends no CORS headers for us, so it rejects — and a page whose
+  // entrance animation waits on that request stays parked at opacity 0. The
+  // DOM fills with content and the screen stays white.
+  //
+  // Routing those through our own origin makes them same-origin again. Only
+  // requests aimed at the proxied site are rewritten; anything else (an
+  // analytics beacon, a third-party API the page talks to properly) is left
+  // exactly as it was.
+  var TARGET = ${JSON.stringify(origin)};
+  var VIA = '/api/proxy-asset?url=';
+  function reroute(input) {
+    try {
+      var href = typeof input === 'string' ? input : (input && input.url);
+      if (!href) return null;
+      var abs = new URL(href, document.baseURI);
+      if (abs.origin !== TARGET) return null;
+      return VIA + encodeURIComponent(abs.href);
+    } catch (e) { return null }
+  }
+
+  var nativeFetch = window.fetch;
+  if (nativeFetch) {
+    window.fetch = function (input, init) {
+      var via = reroute(input);
+      if (!via) return nativeFetch.apply(this, arguments);
+      var opts = init || {};
+      // A rewritten request is same-origin to us and cross-origin to them;
+      // sending credentials would be neither useful nor ours to send.
+      return nativeFetch.call(this, via, Object.assign({}, opts, { credentials: 'omit' }));
+    };
+  }
+
+  var open = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url) {
+    var via = reroute(url);
+    var args = [].slice.call(arguments);
+    if (via && String(method).toUpperCase() === 'GET') args[1] = via;
+    return open.apply(this, args);
+  };
 })();</script>`
 
   // Strip CSP and X-Frame-Options meta tags — they block our injected scripts
