@@ -59,10 +59,18 @@ export function ColorsTab({ colors, extractionError }: { colors: ColorRow[]; ext
   const measured = sorted.some(c => typeof c.area_share === 'number')
   const total = sorted.reduce((sum, c) => sum + (c.area_share ?? 0), 0)
 
+  /**
+   * Square-rooted, not linear. A page is mostly its background — 85% to one
+   * colour is the ordinary case — and drawn literally every accent collapses
+   * onto the floor and a 6% colour is indistinguishable from an unused one.
+   * The compression keeps the ranking and the dominant colour obvious while
+   * leaving the small shares legible. The percentage beside each band is the
+   * real number, so nothing here is hiding the measurement.
+   */
   function bandHeight(c: ColorRow): number {
     if (!measured || total <= 0) return 60
     const share = (c.area_share ?? 0) / total
-    return Math.round(MIN_BAND + share * (MAX_BAND - MIN_BAND))
+    return Math.round(MIN_BAND + Math.sqrt(share) * (MAX_BAND - MIN_BAND))
   }
 
   function valueOf(c: ColorRow): string {

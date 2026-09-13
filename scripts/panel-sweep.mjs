@@ -22,8 +22,8 @@ const BREAKPOINTS = [
   { name: 'mobile', width: 390, height: 844, mobile: true },
   { name: 'desktop', width: 1440, height: 900, mobile: false },
 ]
-/** Longer than the panel's 8s give-up timer, so a verdict is settled. */
-const SETTLE_MS = 15000
+/** Longer than the panel's own give-up timer, so a verdict has settled. */
+const SETTLE_MS = 23000
 const LANES = 2
 
 const log = m => { console.log(m); fs.appendFileSync('panel-sweep.log', m + '\n') }
