@@ -398,3 +398,29 @@ photographed as a desktop page squeezed to phone width.
 node scripts/backfill-mobile.mjs             # everything missing a mobile shot
 node scripts/backfill-mobile.mjs --ids 3,4   # named sources, re-shot
 ```
+
+### Sites that will not preview
+
+Every card offers a live preview, so a site that cannot render inside the panel
+has less to offer than its capture suggests. `preview-audit.mjs` walks the
+library through the proxy and measures what actually paints; anything it flags
+goes to `preview-recheck.mjs`, which retries the flagged set three times each
+and writes `preview-confirmed.json`.
+
+```bash
+node scripts/preview-audit.mjs               # writes preview-results.json
+node scripts/preview-recheck.mjs             # confirms, one site at a time
+node scripts/remove-sites.mjs --dry          # plan, plus a restore file
+node scripts/remove-sites.mjs                # remove them
+```
+
+The recheck is serial on purpose. The audit runs eight headless tabs at once
+and they starve each other: on the run that produced this list, ten of the
+forty-one it flagged rendered perfectly when given a browser to themselves.
+Removing straight from a parallel audit would have deleted working sites, so
+nothing is removed until a serial pass agrees.
+
+`remove-sites.mjs` writes every row a site owns to `removed-sites-<date>.json`
+before deleting anything. Colors, typography and assets cascade off
+`design_sources`, which makes removal one statement and makes an unexamined
+removal unrecoverable — hence the export, and hence `--dry` first.

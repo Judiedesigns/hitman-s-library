@@ -11,7 +11,14 @@ import fs from 'fs'
 
 const BASE = process.env.BASE_URL || 'https://hitmanslibrary.xyz'
 const results = JSON.parse(fs.readFileSync('preview-results.json', 'utf8'))
-const suspects = results.filter(r => !r.ok)
+// Resume support: an interrupted run leaves its verdicts in recheck-done.json,
+// and re-testing a site that has already been settled costs a minute for an
+// answer we have.
+const prior = fs.existsSync('recheck-done.json')
+  ? JSON.parse(fs.readFileSync('recheck-done.json', 'utf8'))
+  : { done: [], confirmed: [] }
+const settled = new Set(prior.done)
+const suspects = results.filter(r => !r.ok && !settled.has(r.id))
 const FAILURE_TEXT = [
   "this page couldn't load", 'this page couldn’t load',
   'application error: a client-side exception', 'just a moment',
@@ -23,16 +30,16 @@ const log = m => { console.log(m); fs.appendFileSync('preview-recheck.log', m + 
 log(`re-testing ${suspects.length} suspects one at a time`)
 const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-dev-shm-usage'] })
 
-const confirmed = []
+const confirmed = [...prior.confirmed]
 for (const s of suspects) {
   let verdict = null
-  for (let attempt = 1; attempt <= 2 && !verdict?.ok; attempt++) {
+  for (let attempt = 1; attempt <= 3 && !verdict?.ok; attempt++) {
     const page = await browser.newPage()
     try {
       await page.setViewport({ width: 1280, height: 800 })
       await page.goto(`${BASE}/api/proxy?url=${encodeURIComponent(s.url)}&picker=0`,
         { waitUntil: 'domcontentloaded', timeout: 45000 })
-      await new Promise(r => setTimeout(r, 12000))
+      await new Promise(r => setTimeout(r, 9000))
       const seen = await page.evaluate(() => ({
         text: (document.body?.innerText || '').trim(),
         imgs: [...document.images].filter(i => i.naturalWidth > 0).length,
@@ -54,7 +61,7 @@ for (const s of suspects) {
     } finally {
       await page.close().catch(() => {})
     }
-    if (!verdict.ok && attempt === 1) await new Promise(r => setTimeout(r, 3000))
+    if (!verdict.ok && attempt < 3) await new Promise(r => setTimeout(r, 2500))
   }
   if (verdict.ok) log(`recovered ${s.id} ${s.url}`)
   else { confirmed.push({ ...s, why: verdict.why }); log(`CONFIRMED ${s.id} ${s.url} — ${verdict.why}`) }
