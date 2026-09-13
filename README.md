@@ -165,10 +165,42 @@ HTML rather than being fetched after hydration.
 
 ## The live preview
 
-The preview tab renders the real site, same-origin, through `/api/proxy`: the
-HTML is fetched server-side, `<base href>` is rewritten to the real origin so
-relative CSS, images and links resolve, and the response carries no
-`X-Frame-Options` or CSP, which is the entire point of the route.
+The preview tab renders the real site through `/api/proxy`: the HTML is fetched
+server-side, `<base href>` is rewritten to the real origin so relative CSS,
+images and links resolve, and the response carries no `X-Frame-Options` or CSP,
+which is the entire point of the route.
+
+### Why the preview has its own domain
+
+The proxy answers on `preview.hitmanslibrary.xyz`, not on the app's own host,
+and the panel's iframe carries `allow-same-origin`.
+
+Both halves are load-bearing. Without `allow-same-origin` the framed page gets
+an opaque origin, `localStorage` throws on first access, and a modern site's
+hydration dies there — which is what was killing the live preview on nearly
+every site in the library. And that flag cannot go on the app's own origin: it
+grants the framed page whatever origin the document came from, so third-party
+JavaScript would hold ours, with the app's storage, its `window.parent`, and
+`/api/admin/*` with the session cookie attached.
+
+A separate host resolves "same origin" to somewhere harmless. The admin session
+cookie is host-only, so it is never sent there; storage is per-origin;
+middleware serves only `/api/proxy` and `/api/proxy-asset` on that hostname and
+404s the rest; and the panel ignores `postMessage` from any other origin.
+
+`lib/preview-origin.ts` picks the host. Where there is no separate one — a
+deployment URL, a bare IP — it returns empty and the flag stays off, so
+previews degrade rather than the isolation. Set `NEXT_PUBLIC_PREVIEW_ORIGIN` to
+override. In development `localhost` and `127.0.0.1` are the same server and
+different origins, which is exactly the separation needed, so dev gets a real
+preview too.
+
+A failed preview is reported by the injected script over `postMessage`, and the
+panel waits 20 seconds for a frame that never loads at all. It used to report
+window errors and unhandled rejections as well, and that took previews down
+across the library: a cross-origin script that throws yields the string
+`"Script error."` and nothing more, and a proxied page is almost entirely
+cross-origin script. A page that renders and throws is a working preview.
 
 **`<base href>` also moves `document.baseURI`,** and that is where it bites.
 Every client-side router resolves the URL it passes to `history.replaceState`
@@ -179,10 +211,9 @@ script guards `pushState` and `replaceState` and retries without the URL, which
 leaves the router's state machine intact — only the address bar is untouched,
 and nobody can see that inside a panel.
 
-Sites that still cannot render live — a server-side fetch refused outright,
-or a page that needs storage the sandboxed frame does not grant — carry
-`metadata.live_preview: false` and open straight to their capture. The panel
-does not spend eight seconds rediscovering that on every visit.
+Sites that still cannot render live — a server-side fetch refused outright —
+carry `metadata.live_preview: false` and open straight to their capture, rather
+than spending the whole timeout rediscovering that on every visit.
 
 `scripts/preview-audit.mjs` checks the whole library at once, loading each site
 through the real proxy in a real browser and judging what painted:
@@ -258,6 +289,37 @@ run filed a screenshot of it as the studio's card. The existing capture is kept
 and the reason recorded, because a stale picture of the real site beats a fresh
 picture of somebody's stack trace.
 
+### Colour coverage
+
+`design_colors.area_share` records how much of a page each colour accounts for,
+and the palette in the panel is drawn at those proportions. Rows without one
+draw at equal weight, and the tab says so.
+
+```bash
+node scripts/backfill-color-shares.mjs             # everything unmeasured
+node scripts/backfill-color-shares.mjs --ids 3,4
+node scripts/backfill-color-shares.mjs --limit 20
+```
+
+The script only writes that one number — it never inserts, deletes or rewrites
+a colour. Re-running the full extractor would have done the job and would also
+have replaced good palettes and typography with whatever today's render
+produced, which is too much risk for one number. Sites added later need a run
+to be measured.
+
+Three things this got wrong before it got them right, all of them worth
+knowing if you touch `lib/color-area.js`:
+
+- Headless Chrome reports `prefers-color-scheme: dark`, so a theme-aware site
+  paints a palette unrelated to the one stored against it. The backfill asks
+  for light.
+- Exact hex matching throws away nearly every measurement, because a page
+  repaints `#fdfdfc` where the palette recorded `#ffffff`. Measurements are
+  attributed to the nearest stored colour within a small radius.
+- Counting background area alone returns one colour at 100% and the rest at
+  zero, for every site. True of a page, useless as a palette. Ink is counted
+  too, at a glyph's share of its em square.
+
 ```bash
 bun run scripts/test-extraction.ts                 # pipeline check, no writes
 ```
@@ -331,6 +393,7 @@ Touch targets are expanded with pseudo-element overlays rather than padding, so 
 | `ADMIN_PASSWORD` | Passcode for `/admin`, and the bearer token for scripts |
 | `ADMIN_SESSION_SECRET` | Optional. Signs session cookies; falls back to `ADMIN_PASSWORD`. Set it so rotating the passcode does not invalidate the signing key |
 | `CRON_SECRET` | Bearer token for the nightly `/api/cron/backfill` job |
+| `NEXT_PUBLIC_PREVIEW_ORIGIN` | Optional. Host that serves the live preview. Derived from the current hostname when unset |
 
 ---
 
@@ -419,6 +482,17 @@ and they starve each other: on the run that produced this list, ten of the
 forty-one it flagged rendered perfectly when given a browser to themselves.
 Removing straight from a parallel audit would have deleted working sites, so
 nothing is removed until a serial pass agrees.
+
+Two sweeps, measuring different things. `preview-sweep.mjs` loads the proxy at
+the top level and asks whether a site can be rendered at all.
+`panel-sweep.mjs` opens the real panel and asks whether a visitor gets a live
+page or a capture — those differ, and the gap between them is where the sandbox
+bugs lived.
+
+```bash
+node scripts/preview-sweep.mjs               # the proxy, both breakpoints
+node scripts/panel-sweep.mjs                 # the panel, both breakpoints
+```
 
 `remove-sites.mjs` writes every row a site owns to `removed-sites-<date>.json`
 before deleting anything. Colors, typography and assets cascade off
