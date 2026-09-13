@@ -84,6 +84,15 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 // only case where the question is actually being asked.
 const changelog: ChangelogRelease[] = [
   {
+    date: '2026-09-14',
+    title: 'Previews On Their Own Ground',
+    items: [
+      { type: 'fixed', author: 'damilare', text: 'Live previews crashed on almost every site the moment they loaded' },
+      { type: 'new', author: 'damilare', text: 'Previews now run on their own domain, walled off from the library' },
+      { type: 'improved', author: 'damilare', text: 'A site that uses local storage no longer breaks its own preview' },
+    ],
+  },
+  {
     date: '2026-09-13',
     title: 'Live Again',
     items: [

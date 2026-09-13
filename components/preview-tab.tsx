@@ -6,6 +6,7 @@ import { ShieldWarning, LockSimple, Clock, FileDashed, Warning } from '@phosphor
 import { classifyExtractionError } from '@/lib/classify-extraction-error'
 import { getDomain } from '@/lib/get-domain'
 import { Spinner } from './ui/spinner'
+import { previewOrigin } from '@/lib/preview-origin'
 
 const ICONS = { ShieldWarning, LockSimple, Clock, FileDashed, Warning }
 type PreviewMode = 'live' | 'screenshot' | 'mobile'
@@ -83,10 +84,25 @@ export function PreviewTab({
   const [mode, setMode] = useState<PreviewMode>(openingMode)
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
-  const errorCheckTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const domain = getDomain(siteUrl)
-  const proxyUrl = `/api/proxy?url=${encodeURIComponent(siteUrl)}`
+  /**
+   * Resolved once per mount, not at module load: it reads window.location, and
+   * the server render has no location to read.
+   */
+  const [origin] = useState(previewOrigin)
+  const proxyUrl = `${origin}/api/proxy?url=${encodeURIComponent(siteUrl)}`
+  /**
+   * Granted only when the proxy answers from a host that is not ours. On its
+   * own origin the flag would hand third-party script the app's storage, its
+   * parent window and its admin session, so there it stays off and previews
+   * degrade instead.
+   */
+  const sandbox = [
+    'allow-scripts', 'allow-forms', 'allow-popups',
+    ...(origin ? ['allow-same-origin'] : []),
+    'allow-top-navigation-by-user-activation',
+  ].join(' ')
   const hasDesktopScreenshot = hasDesktop
   const hasMobileScreenshot = Boolean(mobileScreenshotUrl)
   const hasScreenshot = hasDesktopScreenshot || hasMobileScreenshot
@@ -109,16 +125,12 @@ export function PreviewTab({
     setProxyFailed(false)
     setMode(openingMode)
     if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
-    errorCheckTimersRef.current.forEach(clearTimeout)
-    errorCheckTimersRef.current = []
     // No timer where there is no live attempt to time out.
     if (openingMode !== 'screenshot') {
       loadTimerRef.current = setTimeout(() => setProxyFailed(true), 8000)
     }
     return () => {
       if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
-      errorCheckTimersRef.current.forEach(clearTimeout)
-      errorCheckTimersRef.current = []
     }
   }, [openingMode, siteUrl])
 
@@ -129,6 +141,9 @@ export function PreviewTab({
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
+      // The preview host is the only thing entitled to declare this preview
+      // dead. Without the check any page with a handle on this window could.
+      if (origin && e.origin !== origin) return
       if (e.data?.type === 'proxy-failed') {
         if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
         setProxyFailed(true)
@@ -136,27 +151,16 @@ export function PreviewTab({
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [])
+  }, [origin])
 
-  function detectRenderedPreviewError() {
-    try {
-      const text = iframeRef.current?.contentDocument?.body?.innerText ?? ''
-      if (text.includes('Application error: a client-side exception has occurred')) {
-        setProxyFailed(true)
-      }
-    } catch {
-      // Cross-origin access should not happen because /api/proxy is same-origin,
-      // but if a browser denies it, the normal timeout/error paths still apply.
-    }
-  }
-
+  // Reading the frame's text from out here used to be how a rendered error was
+  // caught. The preview now answers from its own origin, so contentDocument is
+  // closed to us — and the injected script was already watching for the same
+  // string from the inside, where it can actually see it. It reports over
+  // postMessage, which the listener above handles.
   function handleLoad() {
     if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     setLoaded(true)
-    errorCheckTimersRef.current.forEach(clearTimeout)
-    errorCheckTimersRef.current = [250, 750, 1500, 3000].map(delay =>
-      setTimeout(detectRenderedPreviewError, delay)
-    )
   }
 
   if (extractionError && !siteUrl) {
@@ -212,7 +216,7 @@ export function PreviewTab({
               title={`Mobile live preview of ${siteUrl}`}
               onLoad={handleLoad}
               onError={() => setProxyFailed(true)}
-              sandbox="allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation"
+              sandbox={sandbox}
               className="h-full w-full border-none"
               style={{ opacity: loaded ? 1 : 0, transition: 'opacity var(--dur-4) var(--ease-sig)' }}
             />
@@ -248,7 +252,7 @@ export function PreviewTab({
         title={`Live preview of ${siteUrl}`}
         onLoad={handleLoad}
         onError={() => setProxyFailed(true)}
-        sandbox="allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation"
+        sandbox={sandbox}
         className="w-full h-full border-none"
         style={{ opacity: loaded ? 1 : 0, transition: 'opacity var(--dur-4) var(--ease-sig)' }}
       />
