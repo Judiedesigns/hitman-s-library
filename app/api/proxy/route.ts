@@ -41,19 +41,21 @@ const PREVIEW_SCRIPT = `<script>
     window.parent.postMessage({ type: 'proxy-failed', reason: reason || 'client-side preview error' }, '*');
   }
 
-  // Capture phase also catches subresource load failures (a 404 image, a
-  // blocked font, an analytics beacon). Those are routine on a proxied
-  // third-party page and say nothing about whether the page rendered, so
-  // only a genuine uncaught script error counts as a failed preview.
-  window.addEventListener('error', function (event) {
-    if (!event || event.target !== window) return;
-    if (!event.error && !event.message) return;
-    report(event.message || 'client-side preview error');
-  }, true);
-
-  window.addEventListener('unhandledrejection', function (event) {
-    report(event && event.reason ? String(event.reason) : 'unhandled preview rejection');
-  }, true);
+  // There used to be window 'error' and 'unhandledrejection' listeners here,
+  // each calling report(). Between them they took down the live preview on
+  // essentially every site in the library.
+  //
+  // A cross-origin script that throws gives the page the string "Script
+  // error." and nothing else — no file, no line, by design. Proxied pages are
+  // almost entirely cross-origin script, and a third-party tag throwing is
+  // routine on a site that is otherwise painting perfectly. Rejected promises
+  // are worse: the sandbox denies storage and some network, so a page that
+  // renders fine still rejects on the way past.
+  //
+  // Neither answers the only question the panel is asking, which is whether
+  // the page came up. A page that renders and throws is a working preview; a
+  // page that throws its way to a blank screen says so in the two checks that
+  // remain — the server-side failure page, and the rendered error text below.
 
   function checkRenderedError() {
     try {

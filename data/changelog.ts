@@ -85,10 +85,12 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 const changelog: ChangelogRelease[] = [
   {
     date: '2026-09-13',
-    title: 'Live Again On Phones',
+    title: 'Live Again',
     items: [
+      { type: 'fixed', author: 'damilare', text: 'Live previews gave up after three seconds on almost every site' },
+      { type: 'fixed', author: 'damilare', text: 'A script error inside a page no longer counts as a page that failed' },
       { type: 'fixed', author: 'damilare', text: 'The mobile preview showed a screenshot instead of the live site' },
-      { type: 'fixed', author: 'damilare', text: 'A capture now stands in for a live page only when the page will not load' },
+      { type: 'fixed', author: 'damilare', text: 'A capture now stands in only when the live page will not load' },
     ],
   },
   {
