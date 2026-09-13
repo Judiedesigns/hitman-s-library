@@ -85,6 +85,14 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 const changelog: ChangelogRelease[] = [
   {
     date: '2026-09-13',
+    title: 'Live Again On Phones',
+    items: [
+      { type: 'fixed', author: 'damilare', text: 'The mobile preview showed a screenshot instead of the live site' },
+      { type: 'fixed', author: 'damilare', text: 'A capture now stands in for a live page only when the page will not load' },
+    ],
+  },
+  {
+    date: '2026-09-13',
     title: 'Only Sites That Show',
     items: [
       { type: 'improved', author: 'damilare', text: 'Removed 31 sites that would not render in the preview panel' },

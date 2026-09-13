@@ -86,13 +86,22 @@ export function PreviewTab({
   const errorCheckTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const domain = getDomain(siteUrl)
-  const proxyUrl = `/api/proxy?url=${encodeURIComponent(siteUrl)}&picker=0`
+  const proxyUrl = `/api/proxy?url=${encodeURIComponent(siteUrl)}`
   const hasDesktopScreenshot = hasDesktop
   const hasMobileScreenshot = Boolean(mobileScreenshotUrl)
   const hasScreenshot = hasDesktopScreenshot || hasMobileScreenshot
+  /**
+   * A capture stands in for the live page; it never pre-empts one. The mobile
+   * arm used to read `mode === 'mobile' ? mobileScreenshotUrl` unconditionally,
+   * and this branch is tested before the live one — so the moment every site
+   * had a mobile capture backfilled, the phone breakpoint stopped previewing
+   * anything live at all. The condition now names the two cases a still is
+   * actually for: the proxy tried and failed, or it was never going to work.
+   */
+  const stillOnly = proxyFailed || !livePreview
   const activeScreenshotUrl =
-    mode === 'mobile' ? mobileScreenshotUrl :
     mode === 'screenshot' ? screenshotUrl :
+    mode === 'mobile' && stillOnly ? mobileScreenshotUrl :
     null
 
   useEffect(() => {
