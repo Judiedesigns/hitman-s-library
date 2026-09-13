@@ -90,6 +90,7 @@ const changelog: ChangelogRelease[] = [
       { type: 'fixed', author: 'damilare', text: 'Live previews crashed on almost every site the moment they loaded' },
       { type: 'new', author: 'damilare', text: 'Previews now run on their own domain, walled off from the library' },
       { type: 'improved', author: 'damilare', text: 'A site that uses local storage no longer breaks its own preview' },
+      { type: 'fixed', author: 'damilare', text: 'A hidden copy of the panel could tear down the preview you were watching' },
     ],
   },
   {

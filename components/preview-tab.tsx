@@ -144,6 +144,12 @@ export function PreviewTab({
       // The preview host is the only thing entitled to declare this preview
       // dead. Without the check any page with a handle on this window could.
       if (origin && e.origin !== origin) return
+      // And only about itself. The panel mounts its desktop and its phone
+      // layout at once and hides one with CSS, so two of these components are
+      // always listening — an unscoped handler let a failure in the hidden
+      // copy tear down a preview that was rendering perfectly in the visible
+      // one. Measured: the frame painted the site at 2.5s and was gone by 5s.
+      if (e.source !== iframeRef.current?.contentWindow) return
       if (e.data?.type === 'proxy-failed') {
         if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
         setProxyFailed(true)
