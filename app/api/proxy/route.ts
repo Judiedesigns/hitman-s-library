@@ -3,6 +3,20 @@ import { assertPublicUrl, safeFetch, BlockedUrlError } from '@/lib/safe-url'
 
 export const runtime = 'nodejs'
 
+/**
+ * Injected into every proxied page: normalises the cursor, hides a site's own
+ * custom cursor element, and reports a page that rendered an error.
+ *
+ * It deliberately does NOT report window errors or unhandled rejections. Doing
+ * so took the live preview down on essentially every site in the library. A
+ * cross-origin script that throws gives the page the string "Script error." and
+ * nothing else, by design — and a proxied page is almost entirely cross-origin
+ * script, so a third-party tag throwing on a site that was painting perfectly
+ * killed the preview with it. Rejected promises were worse: the sandbox denies
+ * storage and some network, so pages reject on the way past while rendering
+ * fine. Neither answers the question the panel asks, which is whether the page
+ * came up. A page that renders and throws is a working preview.
+ */
 const PREVIEW_SCRIPT = `<script>
 (function () {
   'use strict';
@@ -40,22 +54,6 @@ const PREVIEW_SCRIPT = `<script>
     reported = true;
     window.parent.postMessage({ type: 'proxy-failed', reason: reason || 'client-side preview error' }, '*');
   }
-
-  // There used to be window 'error' and 'unhandledrejection' listeners here,
-  // each calling report(). Between them they took down the live preview on
-  // essentially every site in the library.
-  //
-  // A cross-origin script that throws gives the page the string "Script
-  // error." and nothing else — no file, no line, by design. Proxied pages are
-  // almost entirely cross-origin script, and a third-party tag throwing is
-  // routine on a site that is otherwise painting perfectly. Rejected promises
-  // are worse: the sandbox denies storage and some network, so a page that
-  // renders fine still rejects on the way past.
-  //
-  // Neither answers the only question the panel is asking, which is whether
-  // the page came up. A page that renders and throws is a working preview; a
-  // page that throws its way to a blank screen says so in the two checks that
-  // remain — the server-side failure page, and the rendered error text below.
 
   function checkRenderedError() {
     try {
