@@ -85,6 +85,16 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 const changelog: ChangelogRelease[] = [
   {
     date: '2026-09-14',
+    title: 'Palette And Specimen',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Colours are drawn as one palette, each band sized by how much the site uses it' },
+      { type: 'improved', author: 'damilare', text: 'Type specimens lead with the face, a pangram and its character set' },
+      { type: 'fixed', author: 'damilare', text: 'A specimen now says when it is showing a fallback instead of the real font' },
+      { type: 'fixed', author: 'damilare', text: 'A font that never loaded left its specimen almost invisible' },
+    ],
+  },
+  {
+    date: '2026-09-14',
     title: 'Previews On Their Own Ground',
     items: [
       { type: 'fixed', author: 'damilare', text: 'Live previews crashed on almost every site the moment they loaded' },

@@ -4,6 +4,7 @@ import type { Page } from 'puppeteer'
 import { put } from '@vercel/blob'
 import { existsSync, unlinkSync } from 'fs'
 import { extractAssets } from './asset-extraction'
+import { measureColorAreaShares } from './color-area.js'
 
 // For serverless environments, use the lightweight Chromium from Sparticuz
 let browser: any = null
@@ -200,6 +201,19 @@ export async function settlePage(page: Page): Promise<void> {
     .catch(() => {})
 
   await new Promise(r => setTimeout(r, 500))
+}
+
+/**
+ * How much of the page each colour covers, keyed by lowercase hex.
+ *
+ * The fourth pass of extractBrandColors already computes this and throws it
+ * away, because all it needs from the number is a ranking. Keeping it lets the
+ * palette be drawn at the proportions the site actually uses. Reported
+ * separately rather than folded into that function's return, so nothing on the
+ * extraction write path has to change shape.
+ */
+export async function extractColorAreaShares(page: Page): Promise<Record<string, number>> {
+  return page.evaluate(measureColorAreaShares) as Promise<Record<string, number>>
 }
 
 /**

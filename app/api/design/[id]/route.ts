@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const [colors, typography] = await Promise.all([
-      sql`SELECT hex_value, oklch FROM design_colors WHERE source_id = ${id} ORDER BY id`,
+      sql`SELECT hex_value, oklch, area_share FROM design_colors WHERE source_id = ${id} ORDER BY id`,
       sql`
         SELECT font_family, role, google_fonts_url, primary_weight
         FROM design_typography WHERE source_id = ${id} AND role != 'legacy'

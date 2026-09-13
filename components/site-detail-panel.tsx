@@ -11,7 +11,7 @@ import { ColorsTab } from './colors-tab'
 import { TypeTab } from './type-tab'
 import { Spinner } from './ui/spinner'
 import { EASE, DUR } from '@/lib/motion'
-interface ColorRow { hex_value: string; oklch: string | null }
+interface ColorRow { hex_value: string; oklch: string | null; area_share: number | null }
 interface TypographyRow { font_family: string; role: string; google_fonts_url: string | null; primary_weight: number | null }
 
 interface DetailData {
