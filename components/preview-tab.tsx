@@ -65,6 +65,20 @@ interface PreviewTabProps {
   fill?: boolean
 }
 
+/**
+ * How long to wait for a frame that never loads at all.
+ *
+ * This was eight seconds, chosen when it was the main way a bad preview was
+ * caught. It is not any more: the injected script reports a page that failed
+ * over postMessage within milliseconds, so this is only the backstop for a
+ * frame that produces no load event whatsoever. Against that job eight seconds
+ * was far too short — a heavy site on a slow connection was being called dead
+ * while it was still arriving, and a capture replaced a page that would have
+ * rendered a second later. Waiting longer costs a genuinely broken site
+ * nothing, because it has already reported itself.
+ */
+const GIVE_UP_MS = 20000
+
 export function PreviewTab({
   siteUrl,
   screenshotUrl,
@@ -127,7 +141,7 @@ export function PreviewTab({
     if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
     // No timer where there is no live attempt to time out.
     if (openingMode !== 'screenshot') {
-      loadTimerRef.current = setTimeout(() => setProxyFailed(true), 8000)
+      loadTimerRef.current = setTimeout(() => setProxyFailed(true), GIVE_UP_MS)
     }
     return () => {
       if (loadTimerRef.current) clearTimeout(loadTimerRef.current)

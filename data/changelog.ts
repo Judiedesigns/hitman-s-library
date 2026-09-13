@@ -91,6 +91,8 @@ const changelog: ChangelogRelease[] = [
       { type: 'improved', author: 'damilare', text: 'Type specimens lead with the face, a pangram and its character set' },
       { type: 'fixed', author: 'damilare', text: 'A specimen now says when it is showing a fallback instead of the real font' },
       { type: 'fixed', author: 'damilare', text: 'A font that never loaded left its specimen almost invisible' },
+      { type: 'fixed', author: 'damilare', text: 'A specimen no longer claims a fallback when the real face is available' },
+      { type: 'improved', author: 'damilare', text: 'A slow site gets longer to arrive before the preview gives up on it' },
     ],
   },
   {

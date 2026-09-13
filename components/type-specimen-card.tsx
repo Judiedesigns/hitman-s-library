@@ -38,10 +38,21 @@ const MONO_CHARSET = '{ } [ ] ( ) => !== 0O1lI'
 /** Long enough for a webfont on a slow connection, short enough not to stall. */
 const FONT_TIMEOUT_MS = 4000
 
+/**
+ * Families that are a stack rather than a face. "ui-monospace" resolves to
+ * whatever the platform considers its monospace, which is the correct
+ * rendering, not a substitution — so there is nothing to warn about.
+ */
+const GENERIC = new Set([
+  'ui-monospace', 'ui-sans-serif', 'ui-serif', 'ui-rounded',
+  'system-ui', '-apple-system', 'blinkmacsystemfont',
+  'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy',
+])
+
 export function TypeSpecimenCard({ typography, index }: { typography: TypographyRow; index: number }) {
   const hasWebfont = Boolean(typography.google_fonts_url)
-  const [state, setState] = useState<'loading' | 'loaded' | 'unavailable'>(
-    hasWebfont ? 'loading' : 'unavailable',
+  const [state, setState] = useState<'loading' | 'checking' | 'loaded' | 'unavailable'>(
+    hasWebfont ? 'loading' : 'checking',
   )
   const copied = useCopied()
   const { playCopy } = useSoundsContext()
@@ -52,7 +63,21 @@ export function TypeSpecimenCard({ typography, index }: { typography: Typography
 
   useEffect(() => {
     const url = typography.google_fonts_url
-    if (!url) return
+
+    // No webfont to fetch is not the same as no face to show. Inter, and any
+    // family the app or the operating system already carries, renders exactly
+    // as named — the first cut of this assumed otherwise and captioned every
+    // such specimen "shown in a fallback" underneath type that was correct.
+    if (!url) {
+      document.fonts.ready.then(() => {
+        setState(
+          GENERIC.has(typography.font_family.toLowerCase()) ||
+          document.fonts.check(`${weight} 16px "${typography.font_family}"`)
+            ? 'loaded' : 'unavailable',
+        )
+      })
+      return
+    }
 
     let done = false
     /**
