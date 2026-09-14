@@ -62,11 +62,23 @@ export const metadata: Metadata = {
     // One image, not two. Link previews are rendered from a copy the platform
     // scraped and cached on its own servers, so there is no viewer and no
     // theme to answer — the card's frame follows the phone, the picture in it
-    // cannot. Dark holds up on both grounds; /og-light.png is the same artwork
-    // the other way round if we ever want to switch.
+    // cannot. Dark holds up on both grounds; /og-light-2026-09.png is the same
+    // artwork the other way round if we ever want to switch.
+    //
+    // The filename carries the month the artwork changed, and that is the
+    // point of it. When new art was dropped onto the old /og.png, every
+    // platform that had already cached those bytes kept serving the previous
+    // picture — a re-scrape of the page returns the same image URL, so there
+    // is nothing for the cache to notice. A URL that has never been seen
+    // cannot be stale. /og.png stays where it is, serving the same artwork,
+    // because previews cached against it are still out there and a 404 would
+    // be worse than an old picture.
+    //
+    // Change the artwork, change this filename. Overwriting in place does not
+    // work and looks like it does.
     images: [
       {
-        url: "https://hitmanslibrary.xyz/og.png",
+        url: "https://hitmanslibrary.xyz/og-2026-09.png",
         width: 1200,
         height: 630,
         alt: "Hitman's Library",
@@ -79,7 +91,7 @@ export const metadata: Metadata = {
     title: "Hitman's Library",
     description:
       "A personal infrastructure for everything worth saving on the web. No folders. No bookmarks. Just the library.",
-    images: ["https://hitmanslibrary.xyz/og.png"],
+    images: ["https://hitmanslibrary.xyz/og-2026-09.png"],
     creator: "@damilareoo",
   },
   robots: {

@@ -85,6 +85,14 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 const changelog: ChangelogRelease[] = [
   {
     date: '2026-09-14',
+    title: 'Fresh Link Previews',
+    items: [
+      { type: 'fixed', author: 'damilare', text: 'Shared links kept showing the old artwork. The picture has a new address now' },
+      { type: 'fixed', author: 'damilare', text: 'Dragging the changelog rail could catch a dot from the hidden one' },
+    ],
+  },
+  {
+    date: '2026-09-14',
     title: 'Everything Previews',
     items: [
       { type: 'improved', author: 'damilare', text: 'Every site in the library now previews live, at both breakpoints' },

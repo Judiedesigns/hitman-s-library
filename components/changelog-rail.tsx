@@ -94,8 +94,12 @@ export function ChangelogRail({ months }: ChangelogRailProps) {
    * one on the phone. Picking by plain distance to the pointer covers both
    * without the rail needing to know which shape it is currently in.
    */
-  const scrubToPointer = useCallback((clientX: number, clientY: number) => {
-    const dots = document.querySelectorAll<HTMLElement>('[data-dot-index]')
+  const scrubToPointer = useCallback((clientX: number, clientY: number, within: HTMLElement) => {
+    // Scoped to the rail being dragged, not the document. Both rails are in
+    // the DOM at every width and CSS hides one, so the hidden rail's dots all
+    // report a rect at 0,0 — forty-six candidates sitting in the corner, close
+    // enough to win a nearest-dot contest for a pointer near the top left.
+    const dots = within.querySelectorAll<HTMLElement>('[data-dot-index]')
     let best: number | null = null
     let bestDistance = Infinity
     for (const dot of dots) {
@@ -120,13 +124,13 @@ export function ChangelogRail({ months }: ChangelogRailProps) {
     scrubbingRef.current = true
     setIsScrubbing(true)
     e.currentTarget.setPointerCapture(e.pointerId)
-    scrubToPointer(e.clientX, e.clientY)
+    scrubToPointer(e.clientX, e.clientY, e.currentTarget as HTMLElement)
   }
 
   function moveScrub(e: React.PointerEvent) {
     if (!scrubbingRef.current) return
     e.preventDefault()
-    scrubToPointer(e.clientX, e.clientY)
+    scrubToPointer(e.clientX, e.clientY, e.currentTarget as HTMLElement)
   }
 
   function endScrub(e: React.PointerEvent) {
