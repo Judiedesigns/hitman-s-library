@@ -85,6 +85,15 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 const changelog: ChangelogRelease[] = [
   {
     date: '2026-09-14',
+    title: 'Everything Previews',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Every site in the library now previews live, at both breakpoints' },
+      { type: 'improved', author: 'damilare', text: 'Nine sites were stuck showing a screenshot for no reason. Seven are live again' },
+      { type: 'improved', author: 'damilare', text: 'Removed seven sites that render blank or will not load at all' },
+    ],
+  },
+  {
+    date: '2026-09-14',
     title: 'One Preview, Not Two',
     items: [
       { type: 'improved', author: 'damilare', text: 'Opening a site loaded it twice. Now it loads once' },

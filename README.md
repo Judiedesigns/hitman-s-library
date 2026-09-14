@@ -211,9 +211,16 @@ script guards `pushState` and `replaceState` and retries without the URL, which
 leaves the router's state machine intact — only the address bar is untouched,
 and nobody can see that inside a panel.
 
-Sites that still cannot render live — a server-side fetch refused outright —
-carry `metadata.live_preview: false` and open straight to their capture, rather
-than spending the whole timeout rediscovering that on every visit.
+A site that cannot render live can carry `metadata.live_preview: false` and
+open straight to its capture rather than spending the whole timeout
+rediscovering that on every visit. Nothing carries it today.
+
+**That flag needs re-testing whenever the preview changes.** Nine sites held it
+from an audit that predated the preview's own origin, and all nine previewed
+perfectly once it was cleared — seven of them are still in the library because
+the flag was questioned rather than trusted. A sweep cannot tell you a flagged
+site is broken: it opens to a capture by configuration, so confirming it shows
+a capture is circular. Clear the flag and re-measure.
 
 `scripts/preview-audit.mjs` checks the whole library at once, loading each site
 through the real proxy in a real browser and judging what painted:

@@ -1,247 +1,44 @@
 [
  {
-  "id": 5,
-  "url": "https://www.designspells.com/",
-  "why": "nothing painted (spread 0.0)"
+  "id": 62,
+  "url": "https://Pixel-soccer.vercel.app/",
+  "name": "Pixel Soccer",
+  "why": "live frame renders blank"
  },
  {
-  "id": 16,
-  "url": "https://motion-primitives.com",
-  "why": "nothing painted (spread 0.0)"
+  "id": 70,
+  "url": "https://www.apollo.io/",
+  "name": "AI Sales Platform | Apollo.io - Outbound, Inbound &amp; Automation",
+  "why": "proxy cannot render it; panel falls back to a capture"
  },
  {
-  "id": 24,
-  "url": "https://ramp.com/",
-  "why": "nothing painted (spread 0.0)"
+  "id": 72,
+  "url": "https://mobbin.com/sites/raw-materials-53cc496b-2b44-431b-85f0-f32afda5cf5d/c6b3ee5f-f36d-4918-ae44-34347a6ddc11/preview",
+  "name": "Raw Materials | Mobbin",
+  "why": "live frame renders blank (Mobbin preview URL, duplicate of 73)"
  },
  {
-  "id": 25,
-  "url": "https://baselayer.com/about/",
-  "why": "nothing painted (spread 0.0)"
+  "id": 185,
+  "url": "https://www.untillabs.com/",
+  "name": "until",
+  "why": "proxy cannot render it; panel falls back to a capture"
  },
  {
-  "id": 28,
-  "url": "https://www.seedhealth.com/",
-  "why": "nothing painted (spread 0.0)"
+  "id": 188,
+  "url": "https://shuttle.zip/about",
+  "name": "Shuttle – Your files. Your rules.",
+  "why": "renders only its nav, the page below stays black"
  },
  {
-  "id": 51,
-  "url": "https://aistudentpack.com/",
-  "why": "nothing painted (spread 0.0)"
+  "id": 231,
+  "url": "https://www.elwyn.co/",
+  "name": "ben elwyn | creative technologist",
+  "why": "header renders, the site is an animation that never appears"
  },
  {
-  "id": 60,
-  "url": "https://www.typographicposters.com/",
-  "why": "nothing painted (spread 0.0)"
- },
- {
-  "id": 69,
-  "url": "https://www.tripplankford.com/",
-  "why": "painted, but empty (72 chars)"
- },
- {
-  "id": 82,
-  "url": "https://grainrad.com/",
-  "why": "nothing painted (spread 0.0)"
- },
- {
-  "id": 88,
-  "url": "https://www.tern.ai/why-tern/",
-  "why": "nothing painted (spread 0.5)"
- },
- {
-  "id": 95,
-  "url": "https://plumsoda.com",
-  "why": "nothing painted (spread 0.0)"
- },
- {
-  "id": 101,
-  "url": "https://baselayer.com",
-  "why": "nothing painted (spread 0.0)"
- },
- {
-  "id": 117,
-  "url": "https://sites.research.google/languages/language-explorer",
-  "why": "nothing painted (spread 1.7)"
- },
- {
-  "id": 120,
-  "url": "https://mindmarket.com",
-  "why": "nothing painted (spread 0.0)"
- },
- {
-  "id": 149,
-  "url": "https://tabs.inc",
-  "why": "error page: \"application error: a client-side exception\""
- },
- {
-  "id": 151,
-  "url": "https://ponpon-mania.com",
-  "kind": "Editorial",
-  "ok": false,
-  "ms": 2362,
-  "why": "painted, but empty (38 chars)",
-  "spread": 76.9,
-  "chars": 38,
-  "imgs": 1
- },
- {
-  "id": 145,
-  "url": "https://readymag.com/websites-of-the-year",
-  "kind": "Editorial",
-  "ok": false,
-  "ms": 7327,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 0,
-  "imgs": 0
- },
- {
-  "id": 165,
-  "url": "https://friend.com",
-  "kind": "Product",
-  "ok": false,
-  "ms": 1744,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 0,
-  "imgs": 0
- },
- {
-  "id": 189,
-  "url": "https://unicup.uniswap.org/",
-  "kind": "Event",
-  "ok": false,
-  "ms": 1928,
-  "why": "painted, but empty (64 chars)",
-  "spread": 0,
-  "chars": 64,
-  "imgs": 0
- },
- {
-  "id": 192,
-  "url": "https://www.savor.it/",
-  "kind": "Store",
-  "ok": false,
-  "ms": 1703,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 774,
-  "imgs": 31
- },
- {
-  "id": 199,
-  "url": "https://raggededge.com/",
-  "kind": "Studio",
-  "ok": false,
-  "ms": 2358,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 2635,
-  "imgs": 14
- },
- {
-  "id": 202,
-  "url": "https://aino.agency/",
-  "kind": "Studio",
-  "ok": false,
-  "ms": 2032,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 922,
-  "imgs": 11
- },
- {
-  "id": 210,
-  "url": "https://landonorris.com",
-  "kind": "Portfolio",
-  "ok": false,
-  "ms": 30002,
-  "why": "nothing painted (spread 2.3)"
- },
- {
-  "id": 270,
-  "url": "https://www.anduril.com/",
-  "kind": "Company",
-  "ok": false,
-  "ms": 1853,
-  "why": "painted, but empty (0 chars)",
-  "spread": 7.5,
-  "chars": 0,
-  "imgs": 0
- },
- {
-  "id": 310,
-  "url": "https://www.basedash.com/",
-  "kind": "Product",
-  "ok": false,
-  "ms": 2481,
-  "why": "error page: \"access denied\"",
-  "spread": 46.2,
-  "chars": 14045,
-  "imgs": 20
- },
- {
-  "id": 312,
-  "url": "https://www.vap.studio/a-propos",
-  "kind": "Studio",
-  "ok": false,
-  "ms": 1200,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 0,
-  "imgs": 0
- },
- {
-  "id": 314,
-  "url": "https://sana.ai",
-  "kind": "Product",
-  "ok": false,
-  "ms": 13357,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 0,
-  "imgs": 0
- },
- {
-  "id": 331,
-  "url": "https://revolut.com",
-  "kind": "Product",
-  "ok": false,
-  "ms": 2439,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 0,
-  "imgs": 0
- },
- {
-  "id": 335,
-  "url": "https://platform.openai.com",
-  "kind": "Product",
-  "ok": false,
-  "ms": 4915,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 0,
-  "imgs": 0
- },
- {
-  "id": 334,
-  "url": "https://spotify.design",
-  "kind": "Editorial",
-  "ok": false,
-  "ms": 30002,
-  "why": "painted, but empty (58 chars)"
- },
- {
-  "id": 337,
-  "url": "https://jacques-cie.com/",
-  "kind": "Venue",
-  "ok": false,
-  "ms": 7835,
-  "why": "nothing painted (spread 0.0)",
-  "spread": 0,
-  "chars": 0,
-  "imgs": 0
+  "id": 350,
+  "url": "https://www.on.energy/",
+  "name": "ON.energy | The Race is ON for Grid-Safe AI Power",
+  "why": "live frame is entirely black"
  }
 ]
