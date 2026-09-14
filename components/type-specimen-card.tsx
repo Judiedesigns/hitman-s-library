@@ -51,6 +51,13 @@ const GENERIC = new Set([
 
 export function TypeSpecimenCard({ typography, index }: { typography: TypographyRow; index: number }) {
   const hasWebfont = Boolean(typography.google_fonts_url)
+  /**
+   * Only ever used to caption the specimen, never to hide it. Fading the type
+   * out until its webfont arrived meant up to four seconds of a near-invisible
+   * block, which reads as a broken panel — worse than the brief glimpse of a
+   * fallback that it was avoiding. The face swaps in when it loads, the way
+   * every other page on the web does it.
+   */
   const [state, setState] = useState<'loading' | 'checking' | 'loaded' | 'unavailable'>(
     hasWebfont ? 'loading' : 'checking',
   )
@@ -159,7 +166,6 @@ export function TypeSpecimenCard({ typography, index }: { typography: Typography
           fontWeight: weight,
           letterSpacing: '-0.025em',
           color: 'var(--foreground)',
-          opacity: state === 'loading' ? 0.12 : 1,
         }}
       >
         {typography.font_family}
@@ -173,7 +179,6 @@ export function TypeSpecimenCard({ typography, index }: { typography: Typography
           fontWeight: Math.min(weight, 450),
           letterSpacing: isMono ? '0.01em' : '-0.01em',
           color: 'oklch(from var(--foreground) l c h / 0.55)',
-          opacity: state === 'loading' ? 0.08 : 1,
         }}
       >
         {isMono ? MONO_LINE : PANGRAM}
@@ -187,7 +192,6 @@ export function TypeSpecimenCard({ typography, index }: { typography: Typography
           fontWeight: 400,
           letterSpacing: '0.02em',
           color: 'oklch(from var(--foreground) l c h / 0.28)',
-          opacity: state === 'loading' ? 0.06 : 1,
         }}
       >
         {isMono ? MONO_CHARSET : CHARSET}

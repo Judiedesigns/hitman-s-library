@@ -93,6 +93,7 @@ const changelog: ChangelogRelease[] = [
       { type: 'fixed', author: 'damilare', text: 'A font that never loaded left its specimen almost invisible' },
       { type: 'fixed', author: 'damilare', text: 'A specimen no longer claims a fallback when the real face is available' },
       { type: 'improved', author: 'damilare', text: 'A slow site gets longer to arrive before the preview gives up on it' },
+      { type: 'fixed', author: 'damilare', text: 'Specimens no longer sit near-invisible while their font is downloading' },
     ],
   },
   {
