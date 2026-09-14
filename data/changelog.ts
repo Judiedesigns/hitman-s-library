@@ -85,6 +85,14 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 const changelog: ChangelogRelease[] = [
   {
     date: '2026-09-14',
+    title: 'One Preview, Not Two',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Opening a site loaded it twice. Now it loads once' },
+      { type: 'fixed', author: 'damilare', text: 'An off-screen copy of the panel could take down the preview you were watching' },
+    ],
+  },
+  {
+    date: '2026-09-14',
     title: 'Palette And Specimen',
     items: [
       { type: 'improved', author: 'damilare', text: 'Colours are drawn as one palette, each band sized by how much the site uses it' },

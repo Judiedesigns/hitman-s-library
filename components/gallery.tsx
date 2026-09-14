@@ -15,6 +15,7 @@ import { Brand } from '@/components/brand'
 import { SiteLinks } from '@/components/site-links'
 import { EASE, DUR } from '@/lib/motion'
 import Link from 'next/link'
+import { useIsNarrow } from '@/lib/use-is-narrow'
 
 const gridVariants = {
   hidden: {},
@@ -298,6 +299,8 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
     })
   }, [updateParams])
 
+  const isNarrow = useIsNarrow()
+
   // Lock body scroll only for the sheet, which runs up to the 3-pane split.
   useEffect(() => {
     if (!isPanelOpen) return
@@ -407,7 +410,11 @@ export function Gallery({ initialDesigns, initialPagination, initialCategories }
   // has the same room either way and the count does not shift under you.
   const cardColumns = 'grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3'
 
-  const renderDetailPanel = (variant: 'desktop' | 'mobile') => isPanelOpen && (
+  // Only the panel the viewport actually shows is mounted. Rendering both and
+  // hiding one in CSS meant two live previews per site, and the invisible one
+  // could take the visible one down with it.
+  const renderDetailPanel = (variant: 'desktop' | 'mobile') =>
+    isPanelOpen && (variant === 'mobile') === isNarrow && (
     <SiteDetailPanel
       variant={variant}
       sourceId={Number(selectedId)}
