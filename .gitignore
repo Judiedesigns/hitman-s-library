@@ -56,3 +56,9 @@ coverage/
 preview-audit.log
 preview-results.json
 capture-problems.json
+
+# Sweep logs and resume state — run artefacts, not source
+*.log
+sweep-flagged.json
+recheck-done.json
+panel-done.json
