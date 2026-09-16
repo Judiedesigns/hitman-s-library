@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { AdminRequests } from '@/components/admin-requests'
 import Link from 'next/link'
-import { ArrowLeft, MagnifyingGlass, Trash, CircleNotch, ArrowCounterClockwise, ImageSquare } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowUpRight, MagnifyingGlass, Trash, CircleNotch, ArrowCounterClockwise, ImageSquare } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'motion/react'
 import { classifyExtractionError } from '@/lib/classify-extraction-error'
 import { useSoundsContext } from '@/contexts/sounds-context'
@@ -148,6 +148,7 @@ export default function AdminPage() {
   const [isMobbinImporting, setIsMobbinImporting] = useState(false)
   const [mobbinResult, setMobbinResult] = useState<{ added: number; skipped: number; errors: number } | null>(null)
   const [mobbinSites, setMobbinSites] = useState<{ url: string; name: string; industry: string }[]>([])
+  const [mobbinOpen, setMobbinOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const stageTimers = useRef<ReturnType<typeof setTimeout>[]>([])
   const addInputRef = useRef<HTMLInputElement>(null)
@@ -613,61 +614,81 @@ export default function AdminPage() {
                 : 'Backfill mobile'
               }
             </button>
+            {mobbinSites.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setMobbinOpen(open => !open)}
+                className="h-8 px-3 text-ui border border-edge-strong rounded-[4px] hover:bg-muted transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                aria-expanded={mobbinOpen}
+              >
+                Curated import
+                <span className="text-ink-3 tabular-nums">{mobbinSites.length}</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Mobbin import */}
-        {mobbinSites.length > 0 && (
-          <div className="border border-edge rounded-[4px] p-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-bodytext font-medium">Mobbin curated sites</p>
-                <p className="text-meta text-ink-3 mt-0.5">
-                  {mobbinSites.length} sites · SaaS, Fintech, Design, Dev Tools — duplicates skipped automatically
-                </p>
+        <AnimatePresence initial={false}>
+          {mobbinOpen && mobbinSites.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="border border-edge rounded-[4px] p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-bodytext font-medium">Mobbin curated sites</p>
+                    <p className="text-meta text-ink-3 mt-0.5">
+                      {mobbinSites.length} sites · SaaS, Fintech, Design, Dev Tools — duplicates skipped automatically
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    {mobbinResult && (
+                      <span className="text-meta text-ink-3">
+                        +{mobbinResult.added} added · {mobbinResult.skipped} skipped{mobbinResult.errors > 0 ? ` · ${mobbinResult.errors} errors` : ''}
+                      </span>
+                    )}
+                    <button
+                      onClick={handleMobbinImport}
+                      disabled={isMobbinImporting}
+                      className="h-8 px-3 text-ui border border-foreground/20 bg-foreground/[0.04] rounded-[4px] disabled:opacity-40 hover:bg-foreground/[0.08] hover:border-foreground/40 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      {isMobbinImporting
+                        ? <><CircleNotch className="w-3 h-3 animate-spin" weight="bold" /> Importing…</>
+                        : `Import ${mobbinSites.length} sites`
+                      }
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {mobbinSites.map(s => {
+                    const alreadyIn = allSites.some(a =>
+                      a.source_url.replace(/\/$/, '').replace('https://', '').replace('http://', '').replace('www.', '') ===
+                      s.url.replace(/\/$/, '').replace('https://', '').replace('http://', '').replace('www.', '')
+                    )
+                    return (
+                      <span
+                        key={s.url}
+                        className={[
+                          'text-[10px] font-mono px-2 py-1 rounded-[4px] border',
+                          alreadyIn
+                            ? 'text-ink-4 border-edge-faint'
+                            : 'text-ink-2 border-edge',
+                        ].join(' ')}
+                        title={alreadyIn ? 'Already in library' : s.industry}
+                      >
+                        {alreadyIn ? '✓ ' : ''}{s.name}
+                      </span>
+                    )
+                  })}
+                </div>
               </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                {mobbinResult && (
-                  <span className="text-meta text-ink-3">
-                    +{mobbinResult.added} added · {mobbinResult.skipped} skipped{mobbinResult.errors > 0 ? ` · ${mobbinResult.errors} errors` : ''}
-                  </span>
-                )}
-                <button
-                  onClick={handleMobbinImport}
-                  disabled={isMobbinImporting}
-                  className="h-8 px-3 text-ui border border-foreground/20 bg-foreground/[0.04] rounded-[4px] disabled:opacity-40 hover:bg-foreground/[0.08] hover:border-foreground/40 transition-colors flex items-center gap-1.5 whitespace-nowrap"
-                >
-                  {isMobbinImporting
-                    ? <><CircleNotch className="w-3 h-3 animate-spin" weight="bold" /> Importing…</>
-                    : `Import ${mobbinSites.length} sites`
-                  }
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {mobbinSites.map(s => {
-                const alreadyIn = allSites.some(a =>
-                  a.source_url.replace(/\/$/, '').replace('https://', '').replace('http://', '').replace('www.', '') ===
-                  s.url.replace(/\/$/, '').replace('https://', '').replace('http://', '').replace('www.', '')
-                )
-                return (
-                  <span
-                    key={s.url}
-                    className={[
-                      'text-[10px] font-mono px-2 py-1 rounded-[4px] border',
-                      alreadyIn
-                        ? 'text-ink-4 border-edge-faint'
-                        : 'text-ink-2 border-edge',
-                    ].join(' ')}
-                    title={alreadyIn ? 'Already in library' : s.industry}
-                  >
-                    {alreadyIn ? '✓ ' : ''}{s.name}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Search + count */}
         <div className="flex items-center gap-3">
@@ -726,6 +747,17 @@ export default function AdminPage() {
                     <p className="text-bodytext font-medium truncate">
                       {site.source_name}
                     </p>
+                    <a
+                      href={site.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={event => event.stopPropagation()}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] text-ink-3 transition-colors hover:bg-muted hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30"
+                      aria-label={`Open live site for ${site.source_name}`}
+                      title={`Open ${getDomain(site.source_url)}`}
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5" weight="regular" />
+                    </a>
                     <span className="text-[10px] font-mono text-ink-3 border border-edge px-1.5 py-0.5 rounded-[4px] shrink-0">
                       {site.industry}
                     </span>
