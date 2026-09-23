@@ -59,7 +59,7 @@ export default async function Page(
   const sortParam = typeof params.sort === 'string' ? params.sort : ''
   const [{ designs, pagination }, categories] = await Promise.all([
     queryDesigns({
-      industries: toArray(params.category),
+      kinds: toArray(params.category),
       tags: toArray(params.tag),
       search: typeof params.q === 'string' ? params.q : '',
       sortBy: SLUG_TO_SORT[sortParam] ?? 'recent',

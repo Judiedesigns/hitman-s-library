@@ -13,11 +13,29 @@ const sql = neon(process.env.DATABASE_URL!)
 
 export type SortBy = 'recent' | 'oldest' | 'name' | 'quality'
 
+/**
+ * What kind of site it is — the axis the library is actually browsed on.
+ *
+ * It replaced `industry`, which asked what business the site's customer is in.
+ * That answered a question nobody browsing a design library was asking, and it
+ * answered it badly: 104 of 279 sites were filed as "SaaS" and another 105 as
+ * some flavour of uncategorised, so three quarters of the shelf sat in two
+ * buckets that told you nothing. A studio like hex.inc was filed as E-commerce.
+ *
+ * `Unsorted` is not a kind. It is where a newly added site waits until someone
+ * files it, and it sorts last.
+ */
+export const KINDS = [
+  'Product', 'Studio', 'Editorial', 'Company', 'Portfolio', 'Store', 'Venue', 'Event',
+] as const
+export type Kind = (typeof KINDS)[number]
+export const UNSORTED = 'Unsorted'
+
 export interface DesignRecord {
   id: string
   url: string
   title: string
-  industry: string
+  kind: string
   thumbnail_url?: string
   fallback_thumbnail?: string | null
   colors: string[]
@@ -33,7 +51,7 @@ export interface DesignRecord {
 }
 
 export interface QueryOptions {
-  industries?: string[]
+  kinds?: string[]
   tags?: string[]
   search?: string
   sortBy?: SortBy
@@ -88,7 +106,7 @@ function parseMetadata(raw: unknown): Record<string, any> {
 
 export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult> {
   const {
-    industries = [],
+    kinds = [],
     tags = [],
     search = '',
     sortBy = 'recent',
@@ -102,11 +120,11 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
   const whereConditions: string[] = ['ds.screenshot_url IS NOT NULL']
   const filterParams: any[] = []
 
-  if (industries.length > 0 && !industries.includes('all')) {
-    const denormalized = industries.flatMap(denormalizeIndustry)
-    const placeholders = denormalized.map((_, i) => `$${filterParams.length + i + 1}`).join(',')
-    whereConditions.push(`LOWER(ds.industry) IN (${placeholders})`)
-    filterParams.push(...denormalized)
+  if (kinds.length > 0 && !kinds.includes('all')) {
+    const placeholders = kinds.map((_, i) => `$${filterParams.length + i + 1}`).join(',')
+    // A site with no kind yet answers to Unsorted, so nothing is unreachable.
+    whereConditions.push(`COALESCE(ds.kind, '${UNSORTED}') IN (${placeholders})`)
+    filterParams.push(...kinds)
   }
 
   if (tags.length > 0) {
@@ -128,7 +146,7 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
       ds.id,
       ds.source_url,
       ds.source_name,
-      ds.industry,
+      ds.kind,
       ds.metadata,
       ds.tags,
       ds.created_at,
@@ -165,7 +183,7 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
       id: String(row.id),
       url: row.source_url,
       title: cleanTitle(row.source_name, row.source_url),
-      industry: normalizeIndustry(row.industry),
+      kind: row.kind || UNSORTED,
       thumbnail_url: cleanUrl(row.screenshot_url) || cleanUrl(row.thumbnail_url) || undefined,
       fallback_thumbnail: row.screenshot_url ? cleanUrl(row.thumbnail_url) : null,
       colors: Array.isArray(row.hex_colors) ? row.hex_colors.filter(Boolean) : [],
@@ -189,21 +207,24 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
 
 export async function queryCategories(): Promise<{ name: string; count: number }[]> {
   const rows = await sql`
-    SELECT industry, COUNT(*) as count
+    SELECT COALESCE(kind, ${UNSORTED}) AS kind, COUNT(*) as count
     FROM design_sources
     WHERE screenshot_url IS NOT NULL
-    GROUP BY industry
+    GROUP BY 1
   `
 
-  const merged: Record<string, number> = {}
-  for (const row of rows) {
-    const key = normalizeIndustry(row.industry || 'Other')
-    merged[key] = (merged[key] || 0) + Number(row.count)
-  }
+  const counts: Record<string, number> = {}
+  for (const row of rows) counts[row.kind] = Number(row.count)
 
-  return Object.entries(merged)
-    .map(([name, count]) => ({ name, count }))
-    .sort(compareCategories)
+  // Fixed order rather than by size. The rail is a list of what the library
+  // holds, and a list that reshuffles as sites are added is one you have to
+  // read again every visit.
+  const ordered = KINDS
+    .filter(name => counts[name])
+    .map(name => ({ name: name as string, count: counts[name] }))
+
+  if (counts[UNSORTED]) ordered.push({ name: UNSORTED, count: counts[UNSORTED] })
+  return ordered
 }
 
 /**

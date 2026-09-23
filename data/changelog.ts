@@ -84,6 +84,133 @@ export function releaseAuthors(release: ChangelogRelease): Author[] {
 // only case where the question is actually being asked.
 const changelog: ChangelogRelease[] = [
   {
+    date: '2026-09-14',
+    title: 'Fresh Link Previews',
+    items: [
+      { type: 'fixed', author: 'damilare', text: 'Shared links kept showing the old artwork. The picture has a new address now' },
+      { type: 'fixed', author: 'damilare', text: 'Dragging the changelog rail could catch a dot from the hidden one' },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    title: 'Everything Previews',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Every site in the library now previews live, at both breakpoints' },
+      { type: 'improved', author: 'damilare', text: 'Nine sites were stuck showing a screenshot for no reason. Seven are live again' },
+      { type: 'improved', author: 'damilare', text: 'Removed seven sites that render blank or will not load at all' },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    title: 'One Preview, Not Two',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Opening a site loaded it twice. Now it loads once' },
+      { type: 'fixed', author: 'damilare', text: 'An off-screen copy of the panel could take down the preview you were watching' },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    title: 'Palette And Specimen',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Colours are drawn as one palette, each band sized by how much the site uses it' },
+      { type: 'improved', author: 'damilare', text: 'Type specimens lead with the face, a pangram and its character set' },
+      { type: 'fixed', author: 'damilare', text: 'A specimen now says when it is showing a fallback instead of the real font' },
+      { type: 'fixed', author: 'damilare', text: 'A font that never loaded left its specimen almost invisible' },
+      { type: 'fixed', author: 'damilare', text: 'A specimen no longer claims a fallback when the real face is available' },
+      { type: 'improved', author: 'damilare', text: 'A slow site gets longer to arrive before the preview gives up on it' },
+      { type: 'fixed', author: 'damilare', text: 'Specimens no longer sit near-invisible while their font is downloading' },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    title: 'Previews On Their Own Ground',
+    items: [
+      { type: 'fixed', author: 'damilare', text: 'Live previews crashed on almost every site the moment they loaded' },
+      { type: 'new', author: 'damilare', text: 'Previews now run on their own domain, walled off from the library' },
+      { type: 'improved', author: 'damilare', text: 'A site that uses local storage no longer breaks its own preview' },
+      { type: 'fixed', author: 'damilare', text: 'A hidden copy of the panel could tear down the preview you were watching' },
+    ],
+  },
+  {
+    date: '2026-09-13',
+    title: 'Live Again',
+    items: [
+      { type: 'fixed', author: 'damilare', text: 'Live previews gave up after three seconds on almost every site' },
+      { type: 'fixed', author: 'damilare', text: 'A script error inside a page no longer counts as a page that failed' },
+      { type: 'fixed', author: 'damilare', text: 'The mobile preview showed a screenshot instead of the live site' },
+      { type: 'fixed', author: 'damilare', text: 'A capture now stands in only when the live page will not load' },
+    ],
+  },
+  {
+    date: '2026-09-13',
+    title: 'Only Sites That Show',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Removed 31 sites that would not render in the preview panel' },
+      { type: 'improved', author: 'damilare', text: 'Every remaining card previews live or opens straight to its capture' },
+      { type: 'fixed',    author: 'damilare', text: 'Ten sites were only failing because the audit tested them all at once' },
+    ],
+  },
+  {
+    date: '2026-09-11',
+    title: 'Previews That Load',
+    items: [
+      { type: 'fixed',    author: 'damilare', text: 'Most sites showed \u201cThis page couldn\u2019t load\u201d in the preview. That was our bug, not theirs' },
+      { type: 'fixed',    author: 'damilare', text: 'Others loaded but stayed blank, waiting on a request the preview was blocking' },
+      { type: 'improved', author: 'damilare', text: 'Previews weigh 86% less. A capture is sized for the panel, not shipped whole' },
+      { type: 'improved', author: 'damilare', text: 'Opening the same site twice no longer refetches the entire page' },
+    ],
+  },
+  {
+    date: '2026-09-11',
+    title: 'Scrub the Rail',
+    items: [
+      { type: 'new',      author: 'damilare', text: 'Drag the changelog rail to scrub through releases. The date keeps up' },
+      { type: 'fixed',    author: 'damilare', text: 'Scrolling back up left the rail sitting on a release you had already passed' },
+      { type: 'improved', author: 'damilare', text: 'Arrow keys step through releases one at a time' },
+    ],
+  },
+  {
+    date: '2026-09-11',
+    title: 'Less Admin',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'Dropped the Figma capture pipeline. It produced a capture for none of 278 sites' },
+      { type: 'fixed',    author: 'damilare', text: 'A nightly job recaptured the whole library to fill a column nothing ever wrote' },
+      { type: 'improved', author: 'damilare', text: 'Dropped the Excel importer, the Mobbin seed list, and the share-image fallback' },
+    ],
+  },
+  {
+    date: '2026-09-10',
+    title: 'Filed by Kind',
+    items: [
+      { type: 'improved', author: 'damilare', text: 'The library is filed by what kind of site it is, not by its customer\u2019s industry' },
+      { type: 'fixed',    author: 'damilare', text: 'hex.inc, a brand and product studio, had been filed under E-commerce' },
+      { type: 'improved', author: 'damilare', text: 'Product, Studio, Editorial, Company, Portfolio, Store, Venue, Event \u2014 in fixed order, not by size' },
+      { type: 'fixed',    author: 'damilare', text: 'Three quarters of the shelf used to sit in SaaS or uncategorised' },
+    ],
+  },
+  {
+    date: '2026-09-10',
+    title: 'Every Breakpoint',
+    items: [
+      { type: 'new',      author: 'damilare', text: 'Every site now has a real mobile capture, shot at phone width from the start' },
+      { type: 'fixed',    author: 'damilare', text: 'Mobile captures were desktop pages squeezed to 390px, not the mobile layout' },
+      { type: 'fixed',    author: 'damilare', text: 'Six sites showed their own share image in place of a screenshot' },
+      { type: 'fixed',    author: 'damilare', text: 'Twelve mobile captures were blank, or empty files that loaded nothing' },
+      { type: 'improved', author: 'damilare', text: 'Sites the live preview can never reach now open straight to their capture' },
+      { type: 'fixed',    author: 'damilare', text: 'Two sites whose domains stopped resolving have been removed' },
+    ],
+  },
+  {
+    date: '2026-09-07',
+    title: 'Dark Surfaces',
+    items: [
+      { type: 'improved', author: 'florence', text: 'Dark mode sits on a new surface ladder. Background, cards and popovers step apart' },
+      { type: 'fixed',    author: 'florence', text: 'Muted text on dark was too faint to read. Every level is lighter now' },
+      { type: 'improved', author: 'florence', text: 'Card hover is a fill, not a hard border. Softer in both themes' },
+      { type: 'improved', author: 'florence', text: 'Sidebar categories sit tighter together' },
+    ],
+  },
+  {
     date: '2026-09-01',
     title: 'Link Previews',
     items: [

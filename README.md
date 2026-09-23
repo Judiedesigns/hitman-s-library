@@ -19,7 +19,7 @@ When you add a URL, the app:
 
 ## Features
 
-- **Card grid** — Browse all sites with staggered card entrances, filter by category
+- **Card grid** — Browse all sites with staggered card entrances, filter by kind of site
 - **Detail panel** — Click any site to see preview, mobile, colors, and type in a wide inspector with a sliding tab underline
 - **About** — Where the library came from, with both signatures drawn on as single-centreline SVG paths when they scroll into view (`components/signature.tsx`; art in `data/signatures.ts`)
 - **Keyboard** — `/` focuses search, arrow keys cycle tabs, `Esc` closes the panel
@@ -37,7 +37,49 @@ When you add a URL, the app:
 - **Changelog** — `/changelog` feed showing all additions, re-extractions, and deletions
 - **Color export** — Copy palette as CSS custom properties or Tailwind config snippet
 - **Admin CMS** — Passcode-protected admin at `/admin` to add, search, and delete sites; bulk duplicate removal
-- **Linkable views** — Category, tag, search, sort, and the open site all live in the URL, so any view can be shared and the back button steps through history
+- **Linkable views** — Kind, tag, search, sort, and the open site all live in the URL, so any view can be shared and the back button steps through history
+
+---
+
+## How sites are filed
+
+Every source carries a `kind` — what kind of site it is, which is the question
+someone browsing a design library is actually asking:
+
+| Kind | What belongs in it |
+|---|---|
+| **Product** | Software you sign up for, download, or deploy |
+| **Studio** | Agencies and studios selling their own craft |
+| **Editorial** | Publications, galleries, archives, guidelines |
+| **Company** | Businesses that aren't a product, studio, or store |
+| **Portfolio** | One person's work, under their own name |
+| **Store** | Things you buy |
+| **Venue** | Places you physically go |
+| **Event** | Something with a date on it |
+
+The rail lists them in that fixed order rather than by size, because a list that
+reshuffles as sites are added is one you have to read again every visit.
+
+This replaced `industry`, which recorded the business a site's *customer* was in.
+Three quarters of the library sat in two buckets under that scheme — 104 sources
+filed as "SaaS", another 105 as some flavour of uncategorised — and the labels
+that did exist were often wrong: hex.inc, a brand and product studio, was filed
+under E-commerce. The `industry` column is still there and nothing reads it; it
+is the only record of how a source was originally filed.
+
+A source with no kind shows as **Unsorted** and sorts last, so a newly added site
+is visible rather than silently unreachable. To file a batch, edit
+`scripts/kinds.json` and run:
+
+```bash
+node scripts/apply-kinds.mjs --dry   # print what would change
+node scripts/apply-kinds.mjs         # write it
+```
+
+Tags are a separate matter and are not currently a filter. They were
+auto-detected and are not trustworthy at the level a filter needs: `animated` is
+on 216 of 277 sources and `glassmorphism` on 157. A filter that matches most of
+the library is not a filter.
 
 ---
 
@@ -50,9 +92,8 @@ to public writes, and are fenced accordingly.
 - `POST /api/admin/auth` exchanges `ADMIN_PASSWORD` for an HMAC-signed, httpOnly
   session cookie (12 hour TTL). The passcode is compared in constant time.
 - `requireAdmin()` in `lib/admin-auth.ts` guards every mutating route:
-  `design/delete`, `design/extract`, `design/[id]/reextract`,
-  `design/[id]/figma-capture`, `design/import-excel`, `design/capture-element`,
-  and all of `api/admin/*`. Scripts can pass `Authorization: Bearer $ADMIN_PASSWORD`
+  `design/delete`, `design/extract`, `design/[id]/reextract`, and all of
+  `api/admin/*`. Scripts can pass `Authorization: Bearer $ADMIN_PASSWORD`
   instead of a cookie.
 - The guard fails closed — with no passcode configured, nothing is callable.
 - `lib/safe-url.ts` protects every server-side fetch of a caller-supplied URL.
@@ -122,6 +163,82 @@ HTML rather than being fetched after hydration.
 
 ---
 
+## The live preview
+
+The preview tab renders the real site through `/api/proxy`: the HTML is fetched
+server-side, `<base href>` is rewritten to the real origin so relative CSS,
+images and links resolve, and the response carries no `X-Frame-Options` or CSP,
+which is the entire point of the route.
+
+### Why the preview has its own domain
+
+The proxy answers on `preview.hitmanslibrary.xyz`, not on the app's own host,
+and the panel's iframe carries `allow-same-origin`.
+
+Both halves are load-bearing. Without `allow-same-origin` the framed page gets
+an opaque origin, `localStorage` throws on first access, and a modern site's
+hydration dies there — which is what was killing the live preview on nearly
+every site in the library. And that flag cannot go on the app's own origin: it
+grants the framed page whatever origin the document came from, so third-party
+JavaScript would hold ours, with the app's storage, its `window.parent`, and
+`/api/admin/*` with the session cookie attached.
+
+A separate host resolves "same origin" to somewhere harmless. The admin session
+cookie is host-only, so it is never sent there; storage is per-origin;
+middleware serves only `/api/proxy` and `/api/proxy-asset` on that hostname and
+404s the rest; and the panel ignores `postMessage` from any other origin.
+
+`lib/preview-origin.ts` picks the host. Where there is no separate one — a
+deployment URL, a bare IP — it returns empty and the flag stays off, so
+previews degrade rather than the isolation. Set `NEXT_PUBLIC_PREVIEW_ORIGIN` to
+override. In development `localhost` and `127.0.0.1` are the same server and
+different origins, which is exactly the separation needed, so dev gets a real
+preview too.
+
+A failed preview is reported by the injected script over `postMessage`, and the
+panel waits 20 seconds for a frame that never loads at all. It used to report
+window errors and unhandled rejections as well, and that took previews down
+across the library: a cross-origin script that throws yields the string
+`"Script error."` and nothing more, and a proxied page is almost entirely
+cross-origin script. A page that renders and throws is a working preview.
+
+**`<base href>` also moves `document.baseURI`,** and that is where it bites.
+Every client-side router resolves the URL it passes to `history.replaceState`
+against `baseURI`, so the call goes cross-origin, throws a `SecurityError`
+during hydration, and drops the whole page to Chrome's "This page couldn't
+load". It presents as the site being broken; it is ours. The injected head
+script guards `pushState` and `replaceState` and retries without the URL, which
+leaves the router's state machine intact — only the address bar is untouched,
+and nobody can see that inside a panel.
+
+A site that cannot render live can carry `metadata.live_preview: false` and
+open straight to its capture rather than spending the whole timeout
+rediscovering that on every visit. Nothing carries it today.
+
+**That flag needs re-testing whenever the preview changes.** Nine sites held it
+from an audit that predated the preview's own origin, and all nine previewed
+perfectly once it was cleared — seven of them are still in the library because
+the flag was questioned rather than trusted. A sweep cannot tell you a flagged
+site is broken: it opens to a capture by configuration, so confirming it shows
+a capture is circular. Clear the flag and re-measure.
+
+`scripts/preview-audit.mjs` checks the whole library at once, loading each site
+through the real proxy in a real browser and judging what painted:
+
+```bash
+node scripts/preview-audit.mjs                  # all of them
+node scripts/preview-audit.mjs --ids 3,4,5      # a few
+BASE_URL=http://localhost:3000 node scripts/preview-audit.mjs
+```
+
+Be suspicious of a high failure count. A bad metric will happily report that
+most of the library is broken — an earlier version of this script compared each
+render against the site's stored capture and failed 90% of them, because
+headless Chrome reports `prefers-color-scheme: dark` and half the web answers
+that with a different palette. Look at a screenshot before believing a number.
+
+---
+
 ## Extraction pipeline
 
 `lib/browser-extraction.ts` owns the browser. The order of operations is the
@@ -178,6 +295,37 @@ well: `newterritory.studio` fell over behind a Kirby PHP error and a backfill
 run filed a screenshot of it as the studio's card. The existing capture is kept
 and the reason recorded, because a stale picture of the real site beats a fresh
 picture of somebody's stack trace.
+
+### Colour coverage
+
+`design_colors.area_share` records how much of a page each colour accounts for,
+and the palette in the panel is drawn at those proportions. Rows without one
+draw at equal weight, and the tab says so.
+
+```bash
+node scripts/backfill-color-shares.mjs             # everything unmeasured
+node scripts/backfill-color-shares.mjs --ids 3,4
+node scripts/backfill-color-shares.mjs --limit 20
+```
+
+The script only writes that one number — it never inserts, deletes or rewrites
+a colour. Re-running the full extractor would have done the job and would also
+have replaced good palettes and typography with whatever today's render
+produced, which is too much risk for one number. Sites added later need a run
+to be measured.
+
+Three things this got wrong before it got them right, all of them worth
+knowing if you touch `lib/color-area.js`:
+
+- Headless Chrome reports `prefers-color-scheme: dark`, so a theme-aware site
+  paints a palette unrelated to the one stored against it. The backfill asks
+  for light.
+- Exact hex matching throws away nearly every measurement, because a page
+  repaints `#fdfdfc` where the palette recorded `#ffffff`. Measurements are
+  attributed to the nearest stored colour within a small radius.
+- Counting background area alone returns one colour at 100% and the rest at
+  zero, for every site. True of a page, useless as a palette. Ink is counted
+  too, at a glyph's share of its em square.
 
 ```bash
 bun run scripts/test-extraction.ts                 # pipeline check, no writes
@@ -252,6 +400,7 @@ Touch targets are expanded with pseudo-element overlays rather than padding, so 
 | `ADMIN_PASSWORD` | Passcode for `/admin`, and the bearer token for scripts |
 | `ADMIN_SESSION_SECRET` | Optional. Signs session cookies; falls back to `ADMIN_PASSWORD`. Set it so rotating the passcode does not invalidate the signing key |
 | `CRON_SECRET` | Bearer token for the nightly `/api/cron/backfill` job |
+| `NEXT_PUBLIC_PREVIEW_ORIGIN` | Optional. Host that serves the live preview. Derived from the current hostname when unset |
 
 ---
 
@@ -280,13 +429,79 @@ to plain text. To find and repair those:
 node scripts/repair-screenshots.mjs              # report only
 node scripts/repair-screenshots.mjs --fix        # re-extract the broken ones
 node scripts/repair-screenshots.mjs --fix --limit 5
-node scripts/repair-screenshots.mjs --salvage    # fall back to the site OG image
 ```
 
 `--fix` calls the live re-extract endpoint, so it needs `ADMIN_PASSWORD` and
 `BASE_URL` (defaults to production).
 
 A few sites resist capture entirely — heavy client-rendered apps and bot
-protection. `--salvage` promotes their stored OG thumbnail into `screenshot_url`
-so the card shows something real. Where there is no usable fallback the card
-degrades to the domain name, which is the intended behaviour.
+protection. Where there is no usable capture the card degrades to the domain
+name, which is the intended behaviour.
+
+There used to be a `--salvage` mode that promoted a site's OG thumbnail into
+`screenshot_url` so the card showed *something*. It is gone. A promoted share
+graphic is not a capture of the page and nothing downstream could tell the
+difference: six sources were displaying their own OG image as their screenshot,
+Linear and Granola among them, and every one of those rows looked healthy
+because the URL resolved and the bytes decoded. A site that will not photograph
+should say so, not quietly show a different picture.
+
+### Checking captures
+
+A stored URL proves nothing. It can 404, answer 200 with an empty body, or
+return a single flat colour because the shutter fired before the page painted.
+`validate-captures.mjs` fetches every capture, decodes it, and measures pixel
+variance, so a blank page fails the way a missing one does:
+
+```bash
+node scripts/validate-captures.mjs        # writes capture-problems.json
+node scripts/recapture.mjs --desktop 13,31 --mobile 34,97
+```
+
+`backfill-mobile.mjs` captures the mobile breakpoint for every source missing
+one. It sets the phone viewport and user agent *before* navigating, which the
+`/api/admin/mobile-capture` route does not: that route navigates at 1440px and
+then resizes to 390, so a site serving a different document to phones was
+photographed as a desktop page squeezed to phone width.
+
+```bash
+node scripts/backfill-mobile.mjs             # everything missing a mobile shot
+node scripts/backfill-mobile.mjs --ids 3,4   # named sources, re-shot
+```
+
+### Sites that will not preview
+
+Every card offers a live preview, so a site that cannot render inside the panel
+has less to offer than its capture suggests. `preview-audit.mjs` walks the
+library through the proxy and measures what actually paints; anything it flags
+goes to `preview-recheck.mjs`, which retries the flagged set three times each
+and writes `preview-confirmed.json`.
+
+```bash
+node scripts/preview-audit.mjs               # writes preview-results.json
+node scripts/preview-recheck.mjs             # confirms, one site at a time
+node scripts/remove-sites.mjs --dry          # plan, plus a restore file
+node scripts/remove-sites.mjs                # remove them
+```
+
+The recheck is serial on purpose. The audit runs eight headless tabs at once
+and they starve each other: on the run that produced this list, ten of the
+forty-one it flagged rendered perfectly when given a browser to themselves.
+Removing straight from a parallel audit would have deleted working sites, so
+nothing is removed until a serial pass agrees.
+
+Two sweeps, measuring different things. `preview-sweep.mjs` loads the proxy at
+the top level and asks whether a site can be rendered at all.
+`panel-sweep.mjs` opens the real panel and asks whether a visitor gets a live
+page or a capture — those differ, and the gap between them is where the sandbox
+bugs lived.
+
+```bash
+node scripts/preview-sweep.mjs               # the proxy, both breakpoints
+node scripts/panel-sweep.mjs                 # the panel, both breakpoints
+```
+
+`remove-sites.mjs` writes every row a site owns to `removed-sites-<date>.json`
+before deleting anything. Colors, typography and assets cascade off
+`design_sources`, which makes removal one statement and makes an unexamined
+removal unrecoverable — hence the export, and hence `--dry` first.

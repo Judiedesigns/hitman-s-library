@@ -11,7 +11,7 @@ export interface Design {
   id: string
   url: string
   title: string
-  industry: string
+  kind: string
   thumbnail_url?: string
   fallback_thumbnail?: string | null
   colors: string[]
@@ -198,8 +198,8 @@ export function DesignCard({ design, index, isSelected, onClick, onHover, onTagC
           {/* min-w-0, not shrink-0: a flex item that cannot shrink never
               reaches the width where truncate fires, so the label used to spill
               past the card and get sliced mid-word by overflow-hidden. */}
-          {design.industry ? (
-            <span className="text-micro text-ink-4 truncate min-w-0">{design.industry}</span>
+          {design.kind ? (
+            <span className="text-micro text-ink-4 truncate min-w-0">{design.kind}</span>
           ) : design.tags[0] ? (
             <button
               onClick={e => { e.stopPropagation(); onTagClick(design.tags[0]) }}

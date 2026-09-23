@@ -4,6 +4,7 @@ import type { Page } from 'puppeteer'
 import { put } from '@vercel/blob'
 import { existsSync, unlinkSync } from 'fs'
 import { extractAssets } from './asset-extraction'
+import { measureColorAreaShares } from './color-area.js'
 
 // For serverless environments, use the lightweight Chromium from Sparticuz
 let browser: any = null
@@ -200,6 +201,19 @@ export async function settlePage(page: Page): Promise<void> {
     .catch(() => {})
 
   await new Promise(r => setTimeout(r, 500))
+}
+
+/**
+ * How much of the page each colour covers, keyed by lowercase hex.
+ *
+ * The fourth pass of extractBrandColors already computes this and throws it
+ * away, because all it needs from the number is a ranking. Keeping it lets the
+ * palette be drawn at the proportions the site actually uses. Reported
+ * separately rather than folded into that function's return, so nothing on the
+ * extraction write path has to change shape.
+ */
+export async function extractColorAreaShares(page: Page): Promise<Record<string, number>> {
+  return page.evaluate(measureColorAreaShares) as Promise<Record<string, number>>
 }
 
 /**
@@ -547,97 +561,6 @@ export async function captureMobileScreenshot(
   }
 }
 
-// Fetched once per server instance — avoids loading from inside the headless
-// browser where CDN access may be blocked or unreliable.
-let _captureScript: string | null = null
-async function getCaptureScript(): Promise<string | null> {
-  if (_captureScript) return _captureScript
-  try {
-    const res = await fetch('https://mcp.figma.com/mcp/html-to-design/capture.js', {
-      signal: AbortSignal.timeout(10000),
-    })
-    if (!res.ok) {
-      console.error(`[figma-capture] capture.js fetch failed: ${res.status}`)
-      return null
-    }
-    _captureScript = await res.text()
-    return _captureScript
-  } catch (err) {
-    console.error('[figma-capture] could not fetch capture.js:', err)
-    return null
-  }
-}
-
-export async function captureFigmaLayers(
-  page: Page,
-  siteUrl: string
-): Promise<string | null> {
-  const captureScript = await getCaptureScript()
-  if (!captureScript) {
-    console.error('[figma-capture] capture.js unavailable — skipping')
-    return null
-  }
-
-  try {
-    // Restore clean desktop viewport
-    await page.setViewport({ width: 1440, height: 900 })
-    await page.evaluate(() => window.scrollTo(0, 0))
-    await page.evaluate(() => document.fonts.ready)
-    await new Promise(r => setTimeout(r, 1200))
-
-    // Intercept clipboard.write before injecting the capture script so the
-    // script's output is captured even in headless mode (no real clipboard).
-    await page.evaluate(() => {
-      (window as any).__figmaCapture = null
-      navigator.clipboard.write = async (items: ClipboardItem[]) => {
-        for (const item of items) {
-          if (item.types.includes('text/html')) {
-            const blob = await item.getType('text/html')
-            ;(window as any).__figmaCapture = await blob.text()
-          }
-        }
-      }
-    })
-
-    // Inject capture.js as content — fetched server-side so this works even
-    // when Puppeteer's browser context can't reach external CDNs.
-    await page.addScriptTag({ content: captureScript })
-
-    // Give the script time to register its hash listener, then trigger capture.
-    // figmadelay=2000 tells the script to wait 2s before snapshotting the DOM.
-    await new Promise(r => setTimeout(r, 1500))
-    await page.evaluate(() => {
-      window.location.hash = '#figmacapture&figmadelay=2000'
-    })
-
-    // Wait up to 35s — large/complex pages can take 20–25s to serialise.
-    await page.waitForFunction(
-      '(window).__figmaCapture !== null',
-      { timeout: 35000 }
-    )
-
-    const figmaHtml = await page.evaluate('(window).__figmaCapture') as string
-    if (!figmaHtml || figmaHtml.length < 500) {
-      console.error('[figma-capture] captured HTML too small or empty')
-      return null
-    }
-
-    console.log(`[figma-capture] captured ${figmaHtml.length} bytes for ${siteUrl}`)
-
-    const hostname = new URL(siteUrl).hostname.replace(/\./g, '-')
-    const filename = `figma/${hostname}-${Date.now()}.html`
-    const blob = await put(filename, figmaHtml, {
-      access: 'public',
-      contentType: 'text/html',
-    })
-
-    return blob.url
-  } catch (err) {
-    console.error('[figma-capture] failed:', err)
-    return null
-  }
-}
-
 export async function extractTypographyWithRoles(page: Page): Promise<Array<{
   fontFamily: string
   role: 'heading' | 'body' | 'mono'
@@ -815,7 +738,6 @@ export interface FullExtractionResult {
   colors: string[]
   screenshotUrl: string | null
   mobileScreenshotUrl: string | null
-  figmaCaptureUrl: string | null
   /**
    * The page loaded, but there was nothing on it to read — no type, no assets,
    * and at most one colour. Callers must not write this result over what they
@@ -883,7 +805,7 @@ export async function extractFullDesignData(url: string): Promise<FullExtraction
   const browser = await getBrowser()
   if (!browser) {
     console.error('[extractFullDesignData] Browser unavailable for:', url)
-    return { colors: [], screenshotUrl: null, mobileScreenshotUrl: null, figmaCaptureUrl: null, assets: [], typography: [] }
+    return { colors: [], screenshotUrl: null, mobileScreenshotUrl: null, assets: [], typography: [] }
   }
   const page = await browser.newPage()
 
@@ -945,7 +867,6 @@ export async function extractFullDesignData(url: string): Promise<FullExtraction
         colors: [],
         screenshotUrl: null,
         mobileScreenshotUrl: null,
-        figmaCaptureUrl: null,
         assets: [],
         typography: [],
         renderedNothing: true,
@@ -956,11 +877,7 @@ export async function extractFullDesignData(url: string): Promise<FullExtraction
     const screenshotUrl = await captureFullPageScreenshot(page, url, { scroll: false })
     const mobileScreenshotUrl = await captureMobileScreenshot(page, url)
 
-    // Figma layer capture is deliberately not run here. It waits up to 35s and
-    // had produced a capture for 0 of 290 sources — it was the bulk of the ~50s
-    // an add took, spent on something that never landed. It is still available
-    // per-site through /api/design/[id]/figma-capture.
-    return { colors, screenshotUrl, mobileScreenshotUrl, figmaCaptureUrl: null, assets, typography }
+    return { colors, screenshotUrl, mobileScreenshotUrl, assets, typography }
   } finally {
     await page.close().catch(() => {})
   }

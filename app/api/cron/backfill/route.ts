@@ -1,13 +1,12 @@
 // app/api/cron/backfill/route.ts
 // Vercel cron — runs daily at 3am UTC. Processes as many sites as fit in
-// the 60s window, prioritising sites missing figma capture, then mobile.
+// the 60s window, taking the sites that are missing a capture.
 import { NextRequest, NextResponse } from 'next/server'
 import { neon } from '@neondatabase/serverless'
 import {
   getBrowser,
   captureFullPageScreenshot,
   captureMobileScreenshot,
-  captureFigmaLayers,
 } from '@/lib/browser-extraction'
 
 export const maxDuration = 60
@@ -24,11 +23,12 @@ export async function GET(req: NextRequest) {
   const pending = await sql`
     SELECT id, source_url
     FROM design_sources
-    WHERE figma_capture_url IS NULL
+    -- This used to also match on figma_capture_url IS NULL. Nothing ever wrote
+    -- that column, so the condition matched every row in the table and the job
+    -- re-captured the whole library nightly to fill a column that stayed empty.
+    WHERE screenshot_url IS NULL
        OR mobile_screenshot_url IS NULL
-    ORDER BY
-      figma_capture_url IS NOT NULL,
-      id ASC
+    ORDER BY id ASC
     LIMIT 20
   `
 
@@ -56,14 +56,12 @@ export async function GET(req: NextRequest) {
 
       const screenshotUrl = await captureFullPageScreenshot(page, source_url)
       const mobileScreenshotUrl = await captureMobileScreenshot(page, source_url)
-      const figmaCaptureUrl = await captureFigmaLayers(page, source_url)
 
       await sql`
         UPDATE design_sources
         SET
           screenshot_url        = COALESCE(${screenshotUrl}, screenshot_url),
-          mobile_screenshot_url = COALESCE(${mobileScreenshotUrl}, mobile_screenshot_url),
-          figma_capture_url     = COALESCE(${figmaCaptureUrl}, figma_capture_url)
+          mobile_screenshot_url = COALESCE(${mobileScreenshotUrl}, mobile_screenshot_url)
         WHERE id = ${id}
       `
 

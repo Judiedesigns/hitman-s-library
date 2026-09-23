@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Copy, Check } from '@phosphor-icons/react'
+import { Check } from '@phosphor-icons/react'
 import { useSoundsContext } from '@/contexts/sounds-context'
 import { TabEmptyState } from './tab-empty-state'
 import { useCopied } from '@/lib/use-copied'
@@ -10,6 +10,9 @@ import { useCopied } from '@/lib/use-copied'
 interface ColorRow {
   hex_value: string
   oklch: string | null
+  /** Share of the page's painted area, 0..1. Null on rows extracted before it
+   *  was measured, in which case the palette falls back to equal bands. */
+  area_share: number | null
 }
 
 function parseOklch(s: string): { l: number; c: number; h: number } | null {
@@ -22,9 +25,25 @@ function parseOklch(s: string): { l: number; c: number; h: number } | null {
   }
 }
 
+function lightness(c: ColorRow): number {
+  return c.oklch ? parseFloat(c.oklch.match(/oklch\(([\d.]+)/)?.[1] ?? '0.5') : 0.5
+}
+
+/** Readable text on a given band, judged by the band's own lightness. */
+function inkOn(c: ColorRow): string {
+  return lightness(c) > 0.62 ? 'rgba(0,0,0,0.78)' : 'rgba(255,255,255,0.86)'
+}
+
+/**
+ * Every band is legible and no band swamps the panel. A site whose background
+ * is 94% of its painted area is the normal case, not the exception, and drawn
+ * literally it leaves eight colours sharing a sliver.
+ */
+const MIN_BAND = 34
+const MAX_BAND = 132
+
 export function ColorsTab({ colors, extractionError }: { colors: ColorRow[]; extractionError?: string | null }) {
   const [format, setFormat] = useState<'hex' | 'oklch'>('hex')
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const rowCopy = useCopied()
   const exportCopy = useCopied()
   const { playCopy } = useSoundsContext()
@@ -33,11 +52,33 @@ export function ColorsTab({ colors, extractionError }: { colors: ColorRow[]; ext
     return <TabEmptyState message="No colors extracted" extractionError={extractionError} />
   }
 
-  const sorted = [...colors].sort((a, b) => {
-    const lA = a.oklch ? parseFloat(a.oklch.match(/oklch\(([\d.]+)/)?.[1] ?? '50') : 50
-    const lB = b.oklch ? parseFloat(b.oklch.match(/oklch\(([\d.]+)/)?.[1] ?? '50') : 50
-    return lA - lB
-  })
+  // Darkest to lightest. A palette sorted by usage jumps around the spectrum
+  // and stops reading as a palette; sorted by lightness it reads as one object
+  // and the proportions still show in the band heights.
+  const sorted = [...colors].sort((a, b) => lightness(a) - lightness(b))
+  const measured = sorted.some(c => typeof c.area_share === 'number')
+  const total = sorted.reduce((sum, c) => sum + (c.area_share ?? 0), 0)
+
+  /**
+   * Square-rooted, not linear. A page is mostly its background — 85% to one
+   * colour is the ordinary case — and drawn literally every accent collapses
+   * onto the floor and a 6% colour is indistinguishable from an unused one.
+   * The compression keeps the ranking and the dominant colour obvious while
+   * leaving the small shares legible. The percentage beside each band is the
+   * real number, so nothing here is hiding the measurement.
+   */
+  function bandHeight(c: ColorRow): number {
+    if (!measured || total <= 0) return 60
+    const share = (c.area_share ?? 0) / total
+    return Math.round(MIN_BAND + Math.sqrt(share) * (MAX_BAND - MIN_BAND))
+  }
+
+  function valueOf(c: ColorRow): string {
+    const parsed = c.oklch ? parseOklch(c.oklch) : null
+    return format === 'oklch' && parsed
+      ? `oklch(${parsed.l}% ${parsed.c.toFixed(2)} ${parsed.h}°)`
+      : c.hex_value
+  }
 
   function buildCssVars(): string {
     return sorted.map((c, i) => `  --color-${i + 1}: ${c.hex_value};`).join('\n')
@@ -48,27 +89,17 @@ export function ColorsTab({ colors, extractionError }: { colors: ColorRow[]; ext
     return `extend: {\n  colors: {\n    brand: {\n${entries}\n    },\n  },\n}`
   }
 
-  async function copyExport(type: 'css' | 'tailwind') {
-    const text = type === 'css' ? `:root {\n${buildCssVars()}\n}` : buildTailwind()
+  async function copy(text: string, mark: () => void) {
     try {
       await navigator.clipboard.writeText(text)
       playCopy()
-      exportCopy.markCopied(type)
-    } catch { /* clipboard unavailable */ }
-  }
-
-  async function copyColor(value: string, index: number) {
-    try {
-      await navigator.clipboard.writeText(value)
-      playCopy()
-      rowCopy.markCopied(index)
+      mark()
     } catch { /* clipboard unavailable */ }
   }
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
 
-      {/* Compact toolbar */}
       <div className="sticky top-0 bg-background border-b border-edge px-4 py-2 flex items-center justify-between gap-2 shrink-0 z-10">
         <div className="flex items-center gap-px">
           {(['hex', 'oklch'] as const).map(f => (
@@ -88,7 +119,10 @@ export function ColorsTab({ colors, extractionError }: { colors: ColorRow[]; ext
           {(['css', 'tailwind'] as const).map(type => (
             <button
               key={type}
-              onClick={() => copyExport(type)}
+              onClick={() => copy(
+                type === 'css' ? `:root {\n${buildCssVars()}\n}` : buildTailwind(),
+                () => exportCopy.markCopied(type),
+              )}
               className={[
                 'w-9 py-0.5 rounded-[4px] text-micro flex items-center justify-center transition-colors',
                 exportCopy.copiedId === type ? 'text-ink' : 'text-ink-4 hover:text-ink-2',
@@ -103,42 +137,46 @@ export function ColorsTab({ colors, extractionError }: { colors: ColorRow[]; ext
         </div>
       </div>
 
-      {/* Color list */}
-      <div className="p-3 flex flex-col gap-1.5">
-        {sorted.map((color, i) => {
-          const parsed = color.oklch ? parseOklch(color.oklch) : null
-          const showOklch = format === 'oklch' && parsed !== null
-          const displayValue = showOklch
-            ? `oklch(${parsed!.l}% ${parsed!.c.toFixed(2)} ${parsed!.h}°)`
-            : color.hex_value
+      {/* One object, not a list of rows: the bands meet with no gap and the
+          palette is read as a whole, the way it is on the site itself. */}
+      <div className="p-3">
+        <div className="overflow-hidden rounded-[5px] border border-edge">
+          {sorted.map((color, i) => {
+            const value = valueOf(color)
+            const copied = rowCopy.copiedId === i
+            const share = measured && total > 0 ? (color.area_share ?? 0) / total : null
+            return (
+              <button
+                key={`${color.hex_value}-${i}`}
+                onClick={() => copy(value, () => rowCopy.markCopied(i))}
+                title={`Copy ${value}`}
+                style={{ background: color.hex_value, height: bandHeight(color), color: inkOn(color) }}
+                className="group relative w-full flex items-center justify-between px-3.5 text-left transition-[filter] duration-[var(--dur-2)] ease-[var(--ease-sig)] hover:brightness-[1.06] focus-visible:outline-none focus-visible:brightness-[1.06]"
+              >
+                <span className="text-meta tabular-nums opacity-90">{value}</span>
+                <span className="flex items-center gap-2.5">
+                  {share !== null && share >= 0.01 && (
+                    <span className="text-micro tabular-nums opacity-55">
+                      {Math.round(share * 100)}%
+                    </span>
+                  )}
+                  <span className={[
+                    'text-micro transition-opacity duration-150',
+                    copied ? 'opacity-90' : 'opacity-0 group-hover:opacity-70',
+                  ].join(' ')}>
+                    {copied ? 'copied' : 'copy'}
+                  </span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
-          return (
-            <button
-              key={i}
-              onClick={() => copyColor(displayValue, i)}
-              onMouseEnter={() => setHoveredIndex(i)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              className="group flex items-center gap-3 rounded-[4px] px-3 py-2.5 hover:bg-muted/60 transition-colors text-left w-full"
-            >
-              <div
-                className="w-8 h-8 rounded-[4px] shrink-0 border border-black/[0.07] dark:border-white/[0.07]"
-                style={{ background: color.hex_value }}
-              />
-              <span className="text-meta text-ink-2 flex-1 truncate">
-                {displayValue}
-              </span>
-              <span className={[
-                'shrink-0 transition-opacity duration-150',
-                (hoveredIndex === i || rowCopy.copiedId === i) ? 'opacity-100' : 'opacity-0',
-              ].join(' ')}>
-                {rowCopy.copiedId === i
-                  ? <Check className="w-3 h-3 text-ink-2" weight="bold" />
-                  : <Copy className="w-3 h-3 text-ink-4" weight="regular" />
-                }
-              </span>
-            </button>
-          )
-        })}
+        {!measured && (
+          <p className="text-micro text-ink-4 mt-2.5 px-0.5">
+            Shown at equal weight — this site&rsquo;s colours were read before coverage was measured.
+          </p>
+        )}
       </div>
     </div>
   )

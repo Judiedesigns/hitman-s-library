@@ -1,0 +1,44 @@
+[
+ {
+  "id": 62,
+  "url": "https://Pixel-soccer.vercel.app/",
+  "name": "Pixel Soccer",
+  "why": "live frame renders blank"
+ },
+ {
+  "id": 70,
+  "url": "https://www.apollo.io/",
+  "name": "AI Sales Platform | Apollo.io - Outbound, Inbound &amp; Automation",
+  "why": "proxy cannot render it; panel falls back to a capture"
+ },
+ {
+  "id": 72,
+  "url": "https://mobbin.com/sites/raw-materials-53cc496b-2b44-431b-85f0-f32afda5cf5d/c6b3ee5f-f36d-4918-ae44-34347a6ddc11/preview",
+  "name": "Raw Materials | Mobbin",
+  "why": "live frame renders blank (Mobbin preview URL, duplicate of 73)"
+ },
+ {
+  "id": 185,
+  "url": "https://www.untillabs.com/",
+  "name": "until",
+  "why": "proxy cannot render it; panel falls back to a capture"
+ },
+ {
+  "id": 188,
+  "url": "https://shuttle.zip/about",
+  "name": "Shuttle – Your files. Your rules.",
+  "why": "renders only its nav, the page below stays black"
+ },
+ {
+  "id": 231,
+  "url": "https://www.elwyn.co/",
+  "name": "ben elwyn | creative technologist",
+  "why": "header renders, the site is an animation that never appears"
+ },
+ {
+  "id": 350,
+  "url": "https://www.on.energy/",
+  "name": "ON.energy | The Race is ON for Grid-Safe AI Power",
+  "why": "live frame is entirely black"
+ }
+]

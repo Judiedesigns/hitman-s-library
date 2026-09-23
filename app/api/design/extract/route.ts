@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
       // Save whichever image we ended up with. Falling back to the og:image
       // keeps the card showing something real instead of a bare domain name.
       if (sourceId && effectiveScreenshot) {
-        await sql`UPDATE design_sources SET screenshot_url = ${effectiveScreenshot}, mobile_screenshot_url = ${extractionResult?.mobileScreenshotUrl ?? null}, figma_capture_url = ${extractionResult?.figmaCaptureUrl ?? null} WHERE id = ${sourceId}`
+        await sql`UPDATE design_sources SET screenshot_url = ${effectiveScreenshot}, mobile_screenshot_url = ${extractionResult?.mobileScreenshotUrl ?? null} WHERE id = ${sourceId}`
       }
 
       // Save colors. Every path writes hex_value/oklch, because that is the only

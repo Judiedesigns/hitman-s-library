@@ -17,8 +17,9 @@ export async function GET(
 
   try {
     const sources = await sql`
-      SELECT id, source_url, screenshot_url, mobile_screenshot_url, figma_capture_url, created_at,
-             metadata->>'extraction_error' as extraction_error
+      SELECT id, source_url, screenshot_url, mobile_screenshot_url, created_at,
+             metadata->>'extraction_error' as extraction_error,
+             COALESCE((metadata->>'live_preview')::boolean, true) as live_preview
       FROM design_sources WHERE id = ${id}
     `
     if (!sources.length) {
@@ -26,7 +27,7 @@ export async function GET(
     }
 
     const [colors, typography] = await Promise.all([
-      sql`SELECT hex_value, oklch FROM design_colors WHERE source_id = ${id} ORDER BY id`,
+      sql`SELECT hex_value, oklch, area_share FROM design_colors WHERE source_id = ${id} ORDER BY id`,
       sql`
         SELECT font_family, role, google_fonts_url, primary_weight
         FROM design_typography WHERE source_id = ${id} AND role != 'legacy'
@@ -40,7 +41,7 @@ export async function GET(
       url: source.source_url,
       screenshot_url: toHttps(source.screenshot_url),
       mobile_screenshot_url: toHttps(source.mobile_screenshot_url),
-      figma_capture_url: source.figma_capture_url ?? null,
+      live_preview: source.live_preview,
       created_at: source.created_at,
       extraction_error: source.extraction_error ?? null,
       colors,
