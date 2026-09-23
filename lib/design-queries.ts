@@ -7,6 +7,7 @@ import { unstable_cache } from 'next/cache'
 import { toHttps } from '@/lib/secure-url'
 import { neon } from '@neondatabase/serverless'
 import { cleanTitle, decodeEntities } from './clean-title'
+import { compareCategories, denormalizeIndustry, normalizeIndustry } from './categories'
 
 const sql = neon(process.env.DATABASE_URL!)
 
@@ -43,38 +44,6 @@ export interface QueryOptions {
 export interface QueryResult {
   designs: DesignRecord[]
   pagination: { total: number; limit: number; offset: number; hasMore: boolean }
-}
-
-/** Display name → the raw industry values stored in the database. */
-export function denormalizeIndustry(name: string): string[] {
-  const lower = name.toLowerCase()
-  if (lower === 'saas / app') return ['saas', 'productivity', 'saas / app']
-  if (lower === 'finance') return ['fintech', 'finance']
-  if (lower === 'entertainment') return ['entertainment', 'social media']
-  if (lower === 'other') return ['general', 'uncategorized', 'healthcare', 'health', 'travel', 'education', 'code/bugs', 'other', 'c']
-  return [lower]
-}
-
-/** Raw database industry value → the display name shown in the sidebar. */
-export function normalizeIndustry(raw: string): string {
-  const s = (raw || '').trim()
-  if (/^saas$/i.test(s)) return 'SaaS / App'
-  if (/^fintech$/i.test(s)) return 'Finance'
-  if (/^productivity$/i.test(s)) return 'SaaS / App'
-  if (/^social\s*media$/i.test(s)) return 'Entertainment'
-  if (/^health(care|tech)?$/i.test(s)) return 'Other'
-  if (/^travel$/i.test(s)) return 'Other'
-  if (/^education$/i.test(s)) return 'Other'
-  if (/^marketing$/i.test(s)) return 'Marketing'
-  if (/^e-commerce$/i.test(s)) return 'E-commerce'
-  if (/^entertainment$/i.test(s)) return 'Entertainment'
-  if (/^portfolio$/i.test(s)) return 'Portfolio'
-  if (/^agency$/i.test(s)) return 'Agency'
-  if (/^(general|uncategorized)$/i.test(s)) return 'Other'
-  if (/^code[\s/]+bugs$/i.test(s)) return 'Other'
-  if (/^[a-z]$/.test(s)) return 'Other'
-  if (!s) return 'Other'
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 const SORT_CLAUSES: Record<SortBy, string> = {
@@ -218,8 +187,6 @@ export async function queryDesigns(opts: QueryOptions = {}): Promise<QueryResult
   }
 }
 
-const DEPRIORITIZED = ['Other']
-
 export async function queryCategories(): Promise<{ name: string; count: number }[]> {
   const rows = await sql`
     SELECT industry, COUNT(*) as count
@@ -236,12 +203,7 @@ export async function queryCategories(): Promise<{ name: string; count: number }
 
   return Object.entries(merged)
     .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => {
-      const aLow = DEPRIORITIZED.includes(a.name)
-      const bLow = DEPRIORITIZED.includes(b.name)
-      if (aLow !== bLow) return aLow ? 1 : -1
-      return b.count - a.count
-    })
+    .sort(compareCategories)
 }
 
 /**

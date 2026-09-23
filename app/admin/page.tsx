@@ -27,6 +27,19 @@ interface QueueItem {
   message: string | null
 }
 
+type AddedFilter = 'all' | 'today' | '7' | '30' | '90' | 'older-90'
+type DateSort = 'newest' | 'oldest'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const ADDED_FILTERS: { value: AddedFilter; label: string }[] = [
+  { value: 'all', label: 'Any time' },
+  { value: 'today', label: 'Today' },
+  { value: '7', label: '7 days' },
+  { value: '30', label: '30 days' },
+  { value: '90', label: '90 days' },
+  { value: 'older-90', label: '90+ days' },
+]
+
 const STAGES = [
   { label: 'Launching browser…', delay: 0 },
   { label: 'Rendering page…', delay: 3000 },
@@ -37,6 +50,35 @@ const STAGES = [
 
 function getDomain(url: string) {
   try { return new URL(url).hostname.replace('www.', '') } catch { return url }
+}
+
+function getCreatedTime(createdAt: string) {
+  const time = new Date(createdAt).getTime()
+  return Number.isFinite(time) ? time : null
+}
+
+function getAgeInDays(createdAt: string) {
+  const time = getCreatedTime(createdAt)
+  if (time === null) return null
+  return Math.max(0, Math.floor((Date.now() - time) / DAY_MS))
+}
+
+function matchesAddedFilter(site: Site, filter: AddedFilter) {
+  if (filter === 'all') return true
+  const days = getAgeInDays(site.created_at)
+  if (days === null) return false
+
+  if (filter === 'today') return days === 0
+  if (filter === 'older-90') return days > 90
+  return days <= Number(filter)
+}
+
+function formatAge(createdAt: string) {
+  const days = getAgeInDays(createdAt)
+  if (days === null) return 'Unknown age'
+  if (days === 0) return 'Today'
+  if (days === 1) return '1d old'
+  return `${days}d old`
 }
 
 function SiteStatus({ site }: { site: Site }) {
@@ -132,6 +174,8 @@ export default function AdminPage() {
   const [authChecked, setAuthChecked] = useState(false)
   const [linkInput, setLinkInput] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [addedFilter, setAddedFilter] = useState<AddedFilter>('all')
+  const [dateSort, setDateSort] = useState<DateSort>('newest')
   const [isAdding, setIsAdding] = useState(false)
   const [addStage, setAddStage] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
@@ -169,16 +213,27 @@ export default function AdminPage() {
       .finally(() => setAuthChecked(true))
   }, [])
 
-  const filtered = allSites.filter(s =>
+  const searchedSites = allSites.filter(s =>
     !searchInput ||
     s.source_name.toLowerCase().includes(searchInput.toLowerCase()) ||
     s.source_url.toLowerCase().includes(searchInput.toLowerCase()) ||
     s.industry.toLowerCase().includes(searchInput.toLowerCase())
   )
-  const totalPages = Math.ceil(filtered.length / ITEMS)
-  const paginated = filtered.slice((currentPage - 1) * ITEMS, currentPage * ITEMS)
+  const filtered = searchedSites.filter(site => matchesAddedFilter(site, addedFilter))
+  const sortedSites = [...filtered].sort((a, b) => {
+    const aTime = getCreatedTime(a.created_at)
+    const bTime = getCreatedTime(b.created_at)
 
-  useEffect(() => { setCurrentPage(1) }, [searchInput])
+    if (aTime === null && bTime === null) return 0
+    if (aTime === null) return 1
+    if (bTime === null) return -1
+
+    return dateSort === 'newest' ? bTime - aTime : aTime - bTime
+  })
+  const totalPages = Math.ceil(sortedSites.length / ITEMS)
+  const paginated = sortedSites.slice((currentPage - 1) * ITEMS, currentPage * ITEMS)
+
+  useEffect(() => { setCurrentPage(1) }, [searchInput, addedFilter, dateSort])
 
   useEffect(() => { loadSites() }, [])
 
@@ -690,8 +745,8 @@ export default function AdminPage() {
           )}
         </AnimatePresence>
 
-        {/* Search + count */}
-        <div className="flex items-center gap-3">
+        {/* Search + filters */}
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-3" weight="regular" />
             <input
@@ -702,8 +757,35 @@ export default function AdminPage() {
               className="w-full h-8 pl-8 pr-3 text-ui bg-muted border border-edge-strong rounded-[4px] outline-none focus:border-foreground/40 transition-colors placeholder:text-ink-3"
             />
           </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-meta text-ink-3">Added</span>
+            <select
+              value={addedFilter}
+              onChange={event => setAddedFilter(event.target.value as AddedFilter)}
+              className="h-8 px-2 text-ui bg-muted border border-edge-strong rounded-[4px] outline-none focus:border-foreground/40 transition-colors"
+              aria-label="Filter by date added"
+            >
+              {ADDED_FILTERS.map(filter => (
+                <option key={filter.value} value={filter.value}>
+                  {filter.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-meta text-ink-3">Sort</span>
+            <select
+              value={dateSort}
+              onChange={event => setDateSort(event.target.value as DateSort)}
+              className="h-8 px-2 text-ui bg-muted border border-edge-strong rounded-[4px] outline-none focus:border-foreground/40 transition-colors"
+              aria-label="Sort by date added"
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+            </select>
+          </div>
           <span className="text-ui text-ink-3">
-            {isLoadingSites ? '…' : `${filtered.length} sites`}
+            {isLoadingSites ? '…' : `${sortedSites.length} sites`}
           </span>
         </div>
 
@@ -773,9 +855,12 @@ export default function AdminPage() {
                 </div>
 
                 {/* Date */}
-                <p className="text-meta text-ink-3 shrink-0 hidden md:block">
-                  {site.created_at ? new Date(site.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-                </p>
+                <div className="text-meta text-ink-3 shrink-0 hidden md:block text-right tabular-nums">
+                  <p>
+                    {site.created_at ? new Date(site.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                  </p>
+                  <p className="text-ink-4">{formatAge(site.created_at)}</p>
+                </div>
 
                 {/* Delete */}
                 <button
