@@ -7,6 +7,7 @@ import { unstable_cache } from 'next/cache'
 import { toHttps } from '@/lib/secure-url'
 import { neon } from '@neondatabase/serverless'
 import { cleanTitle, decodeEntities } from './clean-title'
+import { compareCategories, denormalizeIndustry, normalizeIndustry } from './categories'
 
 const sql = neon(process.env.DATABASE_URL!)
 

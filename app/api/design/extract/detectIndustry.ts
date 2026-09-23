@@ -1,6 +1,6 @@
 // Auto-detect design-context category from extracted design data
 const DESIGN_CONTEXT: Array<[string, string[]]> = [
-  ['Agency',        ['agency', 'studio', 'creative', 'branding', 'production house', 'design firm']],
+  ['Creative',      ['agency', 'studio', 'creative', 'branding', 'production house', 'design firm']],
   ['Portfolio',     ['portfolio', 'freelance', 'case study', 'my work', 'about me', 'i design', 'i build']],
   ['E-commerce',   ['shop', 'store', 'cart', 'checkout', 'shopify', 'woocommerce']],
   ['Finance',       ['bank', 'fintech', 'payment', 'crypto', 'invest', 'trading', 'wallet', 'revolut', 'stripe', 'paypal']],

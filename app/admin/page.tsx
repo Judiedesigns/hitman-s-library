@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { AdminRequests } from '@/components/admin-requests'
 import Link from 'next/link'
-import { ArrowLeft, MagnifyingGlass, Trash, CircleNotch, ArrowCounterClockwise, ImageSquare } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowUpRight, MagnifyingGlass, Trash, CircleNotch, ArrowCounterClockwise, ImageSquare } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'motion/react'
 import { classifyExtractionError } from '@/lib/classify-extraction-error'
 import { useSoundsContext } from '@/contexts/sounds-context'
@@ -26,6 +26,19 @@ interface QueueItem {
   message: string | null
 }
 
+type AddedFilter = 'all' | 'today' | '7' | '30' | '90' | 'older-90'
+type DateSort = 'newest' | 'oldest'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const ADDED_FILTERS: { value: AddedFilter; label: string }[] = [
+  { value: 'all', label: 'Any time' },
+  { value: 'today', label: 'Today' },
+  { value: '7', label: '7 days' },
+  { value: '30', label: '30 days' },
+  { value: '90', label: '90 days' },
+  { value: 'older-90', label: '90+ days' },
+]
+
 const STAGES = [
   { label: 'Launching browser…', delay: 0 },
   { label: 'Rendering page…', delay: 3000 },
@@ -36,6 +49,35 @@ const STAGES = [
 
 function getDomain(url: string) {
   try { return new URL(url).hostname.replace('www.', '') } catch { return url }
+}
+
+function getCreatedTime(createdAt: string) {
+  const time = new Date(createdAt).getTime()
+  return Number.isFinite(time) ? time : null
+}
+
+function getAgeInDays(createdAt: string) {
+  const time = getCreatedTime(createdAt)
+  if (time === null) return null
+  return Math.max(0, Math.floor((Date.now() - time) / DAY_MS))
+}
+
+function matchesAddedFilter(site: Site, filter: AddedFilter) {
+  if (filter === 'all') return true
+  const days = getAgeInDays(site.created_at)
+  if (days === null) return false
+
+  if (filter === 'today') return days === 0
+  if (filter === 'older-90') return days > 90
+  return days <= Number(filter)
+}
+
+function formatAge(createdAt: string) {
+  const days = getAgeInDays(createdAt)
+  if (days === null) return 'Unknown age'
+  if (days === 0) return 'Today'
+  if (days === 1) return '1d old'
+  return `${days}d old`
 }
 
 function SiteStatus({ site }: { site: Site }) {
@@ -131,6 +173,8 @@ export default function AdminPage() {
   const [authChecked, setAuthChecked] = useState(false)
   const [linkInput, setLinkInput] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [addedFilter, setAddedFilter] = useState<AddedFilter>('all')
+  const [dateSort, setDateSort] = useState<DateSort>('newest')
   const [isAdding, setIsAdding] = useState(false)
   const [addStage, setAddStage] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
@@ -144,6 +188,10 @@ export default function AdminPage() {
   const [backfillProgress, setBackfillProgress] = useState<{ done: number; total: number } | null>(null)
   const [isPreviewBackfilling, setIsPreviewBackfilling] = useState(false)
   const [previewBackfillProgress, setPreviewBackfillProgress] = useState<{ done: number; total: number } | null>(null)
+  const [isMobbinImporting, setIsMobbinImporting] = useState(false)
+  const [mobbinResult, setMobbinResult] = useState<{ added: number; skipped: number; errors: number } | null>(null)
+  const [mobbinSites, setMobbinSites] = useState<{ url: string; name: string; industry: string }[]>([])
+  const [mobbinOpen, setMobbinOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const stageTimers = useRef<ReturnType<typeof setTimeout>[]>([])
   const addInputRef = useRef<HTMLInputElement>(null)
@@ -164,16 +212,27 @@ export default function AdminPage() {
       .finally(() => setAuthChecked(true))
   }, [])
 
-  const filtered = allSites.filter(s =>
+  const searchedSites = allSites.filter(s =>
     !searchInput ||
     s.source_name.toLowerCase().includes(searchInput.toLowerCase()) ||
     s.source_url.toLowerCase().includes(searchInput.toLowerCase()) ||
     s.kind.toLowerCase().includes(searchInput.toLowerCase())
   )
-  const totalPages = Math.ceil(filtered.length / ITEMS)
-  const paginated = filtered.slice((currentPage - 1) * ITEMS, currentPage * ITEMS)
+  const filtered = searchedSites.filter(site => matchesAddedFilter(site, addedFilter))
+  const sortedSites = [...filtered].sort((a, b) => {
+    const aTime = getCreatedTime(a.created_at)
+    const bTime = getCreatedTime(b.created_at)
 
-  useEffect(() => { setCurrentPage(1) }, [searchInput])
+    if (aTime === null && bTime === null) return 0
+    if (aTime === null) return 1
+    if (bTime === null) return -1
+
+    return dateSort === 'newest' ? bTime - aTime : aTime - bTime
+  })
+  const totalPages = Math.ceil(sortedSites.length / ITEMS)
+  const paginated = sortedSites.slice((currentPage - 1) * ITEMS, currentPage * ITEMS)
+
+  useEffect(() => { setCurrentPage(1) }, [searchInput, addedFilter, dateSort])
 
   useEffect(() => { loadSites() }, [])
 
@@ -587,9 +646,84 @@ export default function AdminPage() {
                 : 'Backfill mobile'
               }
             </button>
+            {mobbinSites.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setMobbinOpen(open => !open)}
+                className="h-8 px-3 text-ui border border-edge-strong rounded-[4px] hover:bg-muted transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                aria-expanded={mobbinOpen}
+              >
+                Curated import
+                <span className="text-ink-3 tabular-nums">{mobbinSites.length}</span>
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Mobbin import */}
+        <AnimatePresence initial={false}>
+          {mobbinOpen && mobbinSites.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="border border-edge rounded-[4px] p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-bodytext font-medium">Mobbin curated sites</p>
+                    <p className="text-meta text-ink-3 mt-0.5">
+                      {mobbinSites.length} sites · SaaS, Fintech, Design, Dev Tools — duplicates skipped automatically
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    {mobbinResult && (
+                      <span className="text-meta text-ink-3">
+                        +{mobbinResult.added} added · {mobbinResult.skipped} skipped{mobbinResult.errors > 0 ? ` · ${mobbinResult.errors} errors` : ''}
+                      </span>
+                    )}
+                    <button
+                      onClick={handleMobbinImport}
+                      disabled={isMobbinImporting}
+                      className="h-8 px-3 text-ui border border-foreground/20 bg-foreground/[0.04] rounded-[4px] disabled:opacity-40 hover:bg-foreground/[0.08] hover:border-foreground/40 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      {isMobbinImporting
+                        ? <><CircleNotch className="w-3 h-3 animate-spin" weight="bold" /> Importing…</>
+                        : `Import ${mobbinSites.length} sites`
+                      }
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {mobbinSites.map(s => {
+                    const alreadyIn = allSites.some(a =>
+                      a.source_url.replace(/\/$/, '').replace('https://', '').replace('http://', '').replace('www.', '') ===
+                      s.url.replace(/\/$/, '').replace('https://', '').replace('http://', '').replace('www.', '')
+                    )
+                    return (
+                      <span
+                        key={s.url}
+                        className={[
+                          'text-[10px] font-mono px-2 py-1 rounded-[4px] border',
+                          alreadyIn
+                            ? 'text-ink-4 border-edge-faint'
+                            : 'text-ink-2 border-edge',
+                        ].join(' ')}
+                        title={alreadyIn ? 'Already in library' : s.industry}
+                      >
+                        {alreadyIn ? '✓ ' : ''}{s.name}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Search + filters */}
+        <div className="flex flex-wrap items-center gap-3">
         {/* Search + count */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
@@ -602,8 +736,35 @@ export default function AdminPage() {
               className="w-full h-8 pl-8 pr-3 text-ui bg-muted border border-edge-strong rounded-[4px] outline-none focus:border-foreground/40 transition-colors placeholder:text-ink-3"
             />
           </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-meta text-ink-3">Added</span>
+            <select
+              value={addedFilter}
+              onChange={event => setAddedFilter(event.target.value as AddedFilter)}
+              className="h-8 px-2 text-ui bg-muted border border-edge-strong rounded-[4px] outline-none focus:border-foreground/40 transition-colors"
+              aria-label="Filter by date added"
+            >
+              {ADDED_FILTERS.map(filter => (
+                <option key={filter.value} value={filter.value}>
+                  {filter.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-meta text-ink-3">Sort</span>
+            <select
+              value={dateSort}
+              onChange={event => setDateSort(event.target.value as DateSort)}
+              className="h-8 px-2 text-ui bg-muted border border-edge-strong rounded-[4px] outline-none focus:border-foreground/40 transition-colors"
+              aria-label="Sort by date added"
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+            </select>
+          </div>
           <span className="text-ui text-ink-3">
-            {isLoadingSites ? '…' : `${filtered.length} sites`}
+            {isLoadingSites ? '…' : `${sortedSites.length} sites`}
           </span>
         </div>
 
@@ -647,6 +808,17 @@ export default function AdminPage() {
                     <p className="text-bodytext font-medium truncate">
                       {site.source_name}
                     </p>
+                    <a
+                      href={site.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={event => event.stopPropagation()}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] text-ink-3 transition-colors hover:bg-muted hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30"
+                      aria-label={`Open live site for ${site.source_name}`}
+                      title={`Open ${getDomain(site.source_url)}`}
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5" weight="regular" />
+                    </a>
                     <span className="text-[10px] font-mono text-ink-3 border border-edge px-1.5 py-0.5 rounded-[4px] shrink-0">
                       {site.kind}
                     </span>
@@ -662,9 +834,12 @@ export default function AdminPage() {
                 </div>
 
                 {/* Date */}
-                <p className="text-meta text-ink-3 shrink-0 hidden md:block">
-                  {site.created_at ? new Date(site.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-                </p>
+                <div className="text-meta text-ink-3 shrink-0 hidden md:block text-right tabular-nums">
+                  <p>
+                    {site.created_at ? new Date(site.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                  </p>
+                  <p className="text-ink-4">{formatAge(site.created_at)}</p>
+                </div>
 
                 {/* Delete */}
                 <button
